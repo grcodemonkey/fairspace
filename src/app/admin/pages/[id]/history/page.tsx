@@ -1,0 +1,105 @@
+import { desc, eq, sql } from "drizzle-orm";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { Suspense } from "react";
+import { getDb } from "@/db";
+import { pageRevisions, pages, users } from "@/db/schema";
+import { requireUser } from "@/guards";
+import { RestoreButton, UnpublishButton } from "./history-buttons";
+
+const formatDate = (date: Date) => `${date.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+
+export default function HistoryPage({ params }: PageProps<"/admin/pages/[id]/history">) {
+  return (
+    <main className="p-8">
+      <Suspense fallback={<p>Loading…</p>}>
+        <History params={params} />
+      </Suspense>
+    </main>
+  );
+}
+
+// The guard and the queries share one Suspense child, so no data loads before the guard passes.
+async function History({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const user = await requireUser();
+  const [page] = await getDb()
+    .select({ id: pages.id, title: pages.title, slug: pages.slug, publishedRevisionId: pages.publishedRevisionId })
+    .from(pages)
+    .where(eq(pages.id, id));
+  if (!page) notFound();
+  const revisions = await getDb()
+    .select({
+      id: pageRevisions.id,
+      createdAt: pageRevisions.createdAt,
+      // Only the title: the full data can be 512 KB per revision.
+      title: sql<string | null>`${pageRevisions.data}->'root'->'props'->>'title'`,
+      author: sql<string>`coalesce(${users.name}, ${users.email}, 'Removed user')`,
+    })
+    .from(pageRevisions)
+    .leftJoin(users, eq(users.id, pageRevisions.createdBy))
+    .where(eq(pageRevisions.pageId, id))
+    .orderBy(desc(pageRevisions.createdAt));
+  const isAdmin = user.role === "admin";
+  const href = page.slug === "home" ? "/" : `/${page.slug}`;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <h1 className="text-3xl font-bold">History: {page.title}</h1>
+      <div className="flex items-center gap-4">
+        <Link href={`/admin/pages/${page.id}/edit`} className="underline">
+          Back to the editor
+        </Link>
+        {page.publishedRevisionId ? (
+          <>
+            <span>
+              Live at{" "}
+              <a href={href} className="underline">
+                {href}
+              </a>
+            </span>
+            <UnpublishButton id={page.id} />
+          </>
+        ) : (
+          <span>Not published</span>
+        )}
+      </div>
+      {revisions.length === 0 ? (
+        <p>No revisions yet. Publish the page from the editor.</p>
+      ) : (
+        <table className="text-left">
+          <thead>
+            <tr>
+              <th className="pr-8 py-1">Published</th>
+              <th className="pr-8 py-1">By</th>
+              <th className="pr-8 py-1">Title</th>
+              <th className="py-1">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {revisions.map((revision) => {
+              const live = revision.id === page.publishedRevisionId;
+              return (
+                <tr key={revision.id} className="border-t align-top">
+                  <td className="pr-8 py-2">{formatDate(revision.createdAt)}</td>
+                  <td className="pr-8 py-2">{revision.author}</td>
+                  <td className="pr-8 py-2">{revision.title}</td>
+                  <td className="py-2">
+                    <div className="flex items-center gap-3">
+                      {live && <span className="font-semibold">Live</span>}
+                      <Link href={`/admin/pages/${page.id}/history/${revision.id}`} className="underline">
+                        View
+                      </Link>
+                      {/* The UI only hides it; restoreRevision is the real gate. */}
+                      {isAdmin && !live && <RestoreButton pageId={page.id} revisionId={revision.id} />}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}

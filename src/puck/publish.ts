@@ -1,0 +1,39 @@
+import type { Data } from "@puckeditor/core";
+import { eq, sql } from "drizzle-orm";
+import { updateTag } from "next/cache";
+import type { getDb } from "@/db";
+import { pageRevisions, pages } from "@/db/schema";
+import { pageTag } from "./published";
+
+// Server code only: the callers are server actions. Data must already have passed parsePageData.
+type Tx = Parameters<Parameters<ReturnType<typeof getDb>["transaction"]>[0]>[0];
+
+/** Locks the page row, so publish, restore and unpublish of one page run one after the other. */
+export async function lockPage(tx: Tx, id: string) {
+  const [page] = await tx.select({ id: pages.id, slug: pages.slug }).from(pages).where(eq(pages.id, id)).for("update");
+  return page ?? null;
+}
+
+/** Adds a revision with `data`, makes it live, and sets the draft to it. Call after lockPage. */
+export async function goLive(tx: Tx, pageId: string, data: Data, userId: string | null) {
+  // clock_timestamp(), not now(): now() is the transaction start, so a publish that waited for the lock could sort first.
+  const [revision] = await tx
+    .insert(pageRevisions)
+    .values({ pageId, data, createdBy: userId, createdAt: sql`clock_timestamp()` })
+    .returning({ id: pageRevisions.id });
+  // Same title rule as saveDraft: the root Title field, and an empty one keeps the old title.
+  const title = typeof data.root.props?.title === "string" ? data.root.props.title.trim() : "";
+  await tx
+    .update(pages)
+    .set({ publishedRevisionId: revision.id, draft: data, ...(title && { title }), updatedAt: new Date(), updatedBy: userId })
+    .where(eq(pages.id, pageId));
+  return revision.id;
+}
+
+/**
+ * Makes the public page show the new live state on the next request. Call only after the transaction commits,
+ * and only from a server action (updateTag works nowhere else). #19 (menu) and #23 (sitemap) add their tags here.
+ */
+export function invalidatePage(slug: string) {
+  updateTag(pageTag(slug));
+}

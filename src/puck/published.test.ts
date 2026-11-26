@@ -42,9 +42,16 @@ test("unknown-slug-returns-null", async () => {
   expect(await getPublishedPage(`no-such-page-${run}`)).toBeNull();
 });
 
-test("other-page-revision-ignored", async () => {
+test("revision-of-other-page-rejected-by-db", async () => {
   const page = await insertPage("victim");
   const other = await insertPage("other");
-  await publish(page.id, other.id, "Other page");
+  await expect(publish(page.id, other.id, "Other page")).rejects.toMatchObject({ cause: { code: "23503" } });
   expect(await getPublishedPage(page.slug)).toBeNull();
+});
+
+test("page-delete-cascades-revisions", async () => {
+  const page = await insertPage("deleted");
+  await publish(page.id, page.id, "Live");
+  await getDb().delete(pages).where(eq(pages.id, page.id));
+  expect(await getDb().select().from(pageRevisions).where(eq(pageRevisions.pageId, page.id))).toHaveLength(0);
 });

@@ -51,11 +51,13 @@ In a guarded page, call the guard first, inside the same async `<Suspense>` chil
 
 ## Pages
 
-Admins and editors create pages at `/admin/pages` and edit them in the Puck editor. "Save draft" saves only the draft; it does not change the live page. Publishing comes in a later release.
+Admins and editors create pages at `/admin/pages` and edit them in the Puck editor. "Save draft" saves only the draft; it does not change the live page.
+
+"Publish" saves the content in the editor and makes it live at once. Each publish keeps a revision. The history is at `/admin/pages/<id>/history`: it lists every revision with a preview. Admins can restore a revision: restore copies it into a new live revision and into the draft, so the history stays complete. Editors and admins can unpublish a page; the draft and the history stay. Known limit: an editor tab that was open during a restore can save its old draft over the restored draft (the last save wins). The live page stays the same until the next publish.
 
 A published page shows at `/<slug>`. The page with slug `home` shows at `/`, and `/home` redirects to `/`. Public pages need no sign-in and show only the published revision, never the draft. Until a `home` page is published, `/` shows the welcome text.
 
-Blocks: Hero, Heading, Rich text, Button and Columns (2–4 columns that stack on mobile). The server checks every block value on save. Links must start with `https://`, `http://`, `mailto:`, `tel:`, `/` or `#`; rich text is cleaned to a short list of safe tags.
+Blocks: Hero, Heading, Rich text, Button and Columns (2–4 columns that stack on mobile). The server checks every block value on save, publish and restore. Links must start with `https://`, `http://`, `mailto:`, `tel:`, `/` or `#`; rich text is cleaned to a short list of safe tags.
 
 ## Media storage
 

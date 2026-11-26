@@ -4,11 +4,13 @@ import { cacheLife, cacheTag } from "next/cache";
 import { getDb } from "@/db";
 import { pageRevisions, pages } from "@/db/schema";
 
-// #12: call `updateTag(pageTag(slug))` on the first publish of a slug (including `home`, which replaces the
-// welcome fallback), on every publish and restore, and for both the old and the new slug on a slug change.
+// Every write that changes what is live calls `invalidatePage(slug)` (src/puck/publish.ts) after its commit: publish
+// (the first publish of `home` replaces the welcome fallback), restore and unpublish. A future slug change must call
+// it for both the old and the new slug.
 export const pageTag = (slug: string) => `page:${slug}`;
 
-// The published revision only, never `pages.draft`. The pageId match ignores a revision of another page.
+// The published revision only, never `pages.draft`. The pages_published_revision_same_page_fk FK already keeps a
+// page on its own revisions; the pageId match is defense in depth.
 // shortcut: each unknown valid-format slug caches a null entry with cacheLife("max"); add a slug-existence
 // check or shorter 404 caching if cache growth shows up.
 export async function getPublishedPage(slug: string): Promise<Data | null> {

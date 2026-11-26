@@ -3,7 +3,7 @@ import type { Data } from "@puckeditor/core";
 import {
   type AnyPgColumn,
   check,
-  index,
+  foreignKey,
   integer,
   jsonb,
   pgEnum,
@@ -11,6 +11,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
 } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
 
@@ -83,18 +84,25 @@ export const pages = pgTable(
     slug: text("slug").notNull().unique(),
     title: text("title").notNull(),
     draft: jsonb("draft").$type<Data>().notNull(),
-    // The live version. Publishing (#12) sets it; null means the page is not live.
-    publishedRevisionId: text("publishedRevisionId").references((): AnyPgColumn => pageRevisions.id, {
-      onDelete: "set null",
-    }),
+    // The live version: publish and restore set it, unpublish clears it; null means the page is not live.
+    publishedRevisionId: text("publishedRevisionId"),
     createdAt: timestamp("createdAt", { mode: "date", withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updatedAt", { mode: "date", withTimezone: true }).notNull().defaultNow(),
     updatedBy: text("updatedBy").references(() => users.id, { onDelete: "set null" }),
   },
-  (page) => [check("pages_slug_format", sql`${page.slug} ~ '^[a-z0-9]+(-[a-z0-9]+)*$'`)],
+  (page) => [
+    check("pages_slug_format", sql`${page.slug} ~ '^[a-z0-9]+(-[a-z0-9]+)*$'`),
+    // A page can only point at its own revision. A null publishedRevisionId skips the check (MATCH SIMPLE).
+    // No "set null": on a composite FK it would null pages.id too. Revisions go only with the page-delete cascade.
+    foreignKey({
+      name: "pages_published_revision_same_page_fk",
+      columns: [page.id, page.publishedRevisionId],
+      foreignColumns: [pageRevisions.pageId, pageRevisions.id],
+    }),
+  ],
 );
 
-// Published snapshots of a page's Puck data. #12 writes them.
+// Published snapshots of a page's Puck data. Append-only: publish and restore each add one (src/puck/publish.ts).
 export const pageRevisions = pgTable(
   "page_revisions",
   {
@@ -108,8 +116,8 @@ export const pageRevisions = pgTable(
     createdAt: timestamp("createdAt", { mode: "date", withTimezone: true }).notNull().defaultNow(),
     createdBy: text("createdBy").references(() => users.id, { onDelete: "set null" }),
   },
-  // For a page's revision list and for the cascade on page delete.
-  (revision) => [index("page_revisions_page_id_idx").on(revision.pageId)],
+  // The target of the same-page FK on pages. pageId comes first, so it also serves the history list and the cascade.
+  (revision) => [unique("page_revisions_page_id_id_unique").on(revision.pageId, revision.id)],
 );
 
 // Uploaded files. The object is in the S3 bucket at `key`; uploadedAt stays null while the upload is pending.

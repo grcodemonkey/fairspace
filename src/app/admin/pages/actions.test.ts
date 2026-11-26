@@ -1,14 +1,20 @@
 // @vitest-environment node
-import { eq, inArray, sql } from "drizzle-orm";
+import { asc, eq, inArray, sql } from "drizzle-orm";
+import { updateTag } from "next/cache";
 import type { Session } from "next-auth";
 import { afterAll, beforeEach, expect, test, vi } from "vitest";
 import { auth } from "@/auth";
 import { getDb } from "@/db";
 import { pageRevisions, pages, users } from "@/db/schema";
 import { allBlocksFixture } from "@/puck/all-blocks.fixture";
-import { createPage, saveDraft } from "./actions";
+import { getPublishedPage } from "@/puck/published";
+import { createPage, publishPage, restoreRevision, saveDraft, unpublishPage } from "./actions";
 
 vi.mock("@/auth", () => ({ auth: vi.fn() }));
+// updateTag and refresh work only inside a Next server action; "use cache" is a no-op outside Next.
+vi.mock("next/cache", () => ({ updateTag: vi.fn(), refresh: vi.fn(), cacheLife: vi.fn(), cacheTag: vi.fn() }));
+// next build sets this from experimental.authInterrupts; without it forbidden() throws a plain Error.
+vi.stubEnv("__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS", "true");
 
 // Digest formats from next/dist/client/components/redirect.js and http-access-fallback.
 const REDIRECT_TO_SIGN_IN = /^NEXT_REDIRECT;\w+;\/sign-in;307;$/;
@@ -17,6 +23,7 @@ const NOT_FOUND = "NEXT_HTTP_ERROR_FALLBACK;404";
 
 const run = crypto.randomUUID().slice(0, 8);
 const editorId = `actions-editor-${run}`;
+const adminId = `actions-admin-${run}`;
 const slugs: string[] = [];
 const slug = (name: string) => {
   const s = `${name}-${run}`;
@@ -35,6 +42,10 @@ const signedInAsEditor = () =>
   vi
     .mocked(auth as () => Promise<Session | null>)
     .mockResolvedValue({ user: { id: editorId, email: `${editorId}@example.com`, role: "editor" }, expires: "" });
+const signedInAsAdmin = () =>
+  vi
+    .mocked(auth as () => Promise<Session | null>)
+    .mockResolvedValue({ user: { id: adminId, email: `${adminId}@example.com`, role: "admin" }, expires: "" });
 
 async function insertPage(name: string) {
   const [row] = await getDb()
@@ -47,12 +58,19 @@ const reload = async (id: string) => (await getDb().select().from(pages).where(e
 
 beforeEach(async () => {
   signedOut();
-  await getDb().insert(users).values({ id: editorId, email: `${editorId}@example.com` }).onConflictDoNothing();
+  vi.mocked(updateTag).mockClear();
+  await getDb()
+    .insert(users)
+    .values([
+      { id: editorId, email: `${editorId}@example.com` },
+      { id: adminId, email: `${adminId}@example.com`, role: "admin" },
+    ])
+    .onConflictDoNothing();
 });
 
 afterAll(async () => {
   await getDb().delete(pages).where(inArray(pages.slug, slugs)); // cascades to page_revisions
-  await getDb().delete(users).where(eq(users.id, editorId));
+  await getDb().delete(users).where(inArray(users.id, [editorId, adminId]));
 });
 
 const newDraft = { root: { props: { title: "Changed" } }, content: [] };
@@ -174,4 +192,155 @@ test("slug-unique-in-db", async () => {
   await expect(
     getDb().insert(pages).values({ title: "x", slug: page.slug, draft: newDraft }),
   ).rejects.toMatchObject({ cause: { code: "23505" } });
+});
+
+const FORBIDDEN = "NEXT_HTTP_ERROR_FALLBACK;403";
+const doc = (title: string) => ({ root: { props: { title } }, content: [] });
+const revisionsOf = (pageId: string) =>
+  getDb().select().from(pageRevisions).where(eq(pageRevisions.pageId, pageId)).orderBy(asc(pageRevisions.createdAt));
+const restoreForm = (pageId: string, revisionId: string) => {
+  const f = new FormData();
+  f.set("pageId", pageId);
+  f.set("revisionId", revisionId);
+  return f;
+};
+const idForm = (id: string) => {
+  const f = new FormData();
+  f.set("id", id);
+  return f;
+};
+
+test("publish-signed-out-redirects", async () => {
+  const page = await insertPage("pub-signed-out");
+  await expect(publishPage(page.id, doc("Live"))).rejects.toMatchObject({
+    digest: expect.stringMatching(REDIRECT_TO_SIGN_IN),
+  });
+  expect(await revisionsOf(page.id)).toHaveLength(0);
+  expect(await reload(page.id)).toEqual(page);
+});
+
+test("publish-invalid-data-rejected", async () => {
+  signedInAsEditor();
+  const page = await insertPage("pub-invalid");
+  const bad = { root: { props: {} }, content: [{ type: "Script", props: { id: "x" } }] };
+  await expect(publishPage(page.id, bad)).resolves.toEqual({ error: "The page data is not valid." });
+  expect(await revisionsOf(page.id)).toHaveLength(0);
+  expect(await reload(page.id)).toEqual(page);
+});
+
+test("publish-goes-live", async () => {
+  signedInAsEditor();
+  const page = await insertPage("pub-live");
+  await expect(publishPage(page.id, doc("Live title"))).resolves.toEqual({ ok: true });
+  const [revision, ...rest] = await revisionsOf(page.id);
+  expect(rest).toHaveLength(0);
+  expect(revision).toMatchObject({ data: doc("Live title"), createdBy: editorId });
+  const saved = await reload(page.id);
+  expect(saved).toMatchObject({ publishedRevisionId: revision.id, draft: doc("Live title"), title: "Live title" });
+  expect(await getPublishedPage(page.slug)).toEqual(doc("Live title"));
+  expect(updateTag).toHaveBeenCalledWith(`page:${page.slug}`);
+});
+
+test("publish-twice-keeps-both", async () => {
+  signedInAsEditor();
+  const page = await insertPage("pub-twice");
+  await publishPage(page.id, doc("First"));
+  await publishPage(page.id, doc("Second"));
+  const revisions = await revisionsOf(page.id);
+  expect(revisions.map((r) => r.data)).toEqual([doc("First"), doc("Second")]);
+  expect((await reload(page.id)).publishedRevisionId).toBe(revisions[1].id);
+});
+
+test("publish-missing-page-not-found", async () => {
+  signedInAsEditor();
+  await expect(publishPage(crypto.randomUUID(), doc("x"))).rejects.toMatchObject({ digest: NOT_FOUND });
+});
+
+test("concurrent-publishes-serialize", async () => {
+  signedInAsEditor();
+  const page = await insertPage("pub-race");
+  await Promise.all([publishPage(page.id, doc("A")), publishPage(page.id, doc("B"))]);
+  const revisions = await revisionsOf(page.id);
+  expect(revisions).toHaveLength(2);
+  // The row lock plus clock_timestamp(): the newest revision is the live one.
+  expect((await reload(page.id)).publishedRevisionId).toBe(revisions[1].id);
+});
+
+test("restore-editor-forbidden", async () => {
+  signedInAsEditor();
+  const page = await insertPage("restore-editor");
+  await publishPage(page.id, doc("One"));
+  await publishPage(page.id, doc("Two"));
+  const [first] = await revisionsOf(page.id);
+  const before = await reload(page.id);
+  await expect(restoreRevision({}, restoreForm(page.id, first.id))).rejects.toMatchObject({ digest: FORBIDDEN });
+  expect(await revisionsOf(page.id)).toHaveLength(2);
+  expect(await reload(page.id)).toEqual(before);
+});
+
+test("restore-admin-copies-revision", async () => {
+  signedInAsEditor();
+  const page = await insertPage("restore-admin");
+  await publishPage(page.id, doc("One"));
+  await publishPage(page.id, doc("Two"));
+  const [first] = await revisionsOf(page.id);
+  signedInAsAdmin();
+  vi.mocked(updateTag).mockClear();
+  await expect(restoreRevision({}, restoreForm(page.id, first.id))).resolves.toEqual({});
+  const revisions = await revisionsOf(page.id);
+  expect(revisions).toHaveLength(3);
+  expect(revisions[2]).toMatchObject({ data: doc("One"), createdBy: adminId });
+  expect(await reload(page.id)).toMatchObject({ publishedRevisionId: revisions[2].id, draft: doc("One"), title: "One" });
+  expect(updateTag).toHaveBeenCalledWith(`page:${page.slug}`);
+});
+
+test("restore-other-page-refused", async () => {
+  signedInAsEditor();
+  const page = await insertPage("restore-victim");
+  const other = await insertPage("restore-other");
+  await publishPage(page.id, doc("Mine"));
+  await publishPage(other.id, doc("Theirs"));
+  const [theirs] = await revisionsOf(other.id);
+  const before = await reload(page.id);
+  signedInAsAdmin();
+  await expect(restoreRevision({}, restoreForm(page.id, theirs.id))).resolves.toEqual({
+    error: "That revision is not part of this page.",
+  });
+  expect(await revisionsOf(page.id)).toHaveLength(1);
+  expect(await reload(page.id)).toEqual(before);
+});
+
+test("restore-invalid-old-data-refused", async () => {
+  const page = await insertPage("restore-invalid");
+  // A block type that today's validator does not know.
+  const [old] = await getDb()
+    .insert(pageRevisions)
+    .values({ pageId: page.id, data: { root: { props: {} }, content: [{ type: "Gone", props: { id: "g" } }] } })
+    .returning();
+  signedInAsAdmin();
+  await expect(restoreRevision({}, restoreForm(page.id, old.id))).resolves.toEqual({
+    error: "The page data is not valid.",
+  });
+  expect(await revisionsOf(page.id)).toHaveLength(1);
+  expect(await reload(page.id)).toEqual(page);
+});
+
+test("unpublish-takes-page-offline", async () => {
+  signedInAsEditor();
+  const page = await insertPage("unpublish");
+  await publishPage(page.id, doc("Live"));
+  vi.mocked(updateTag).mockClear();
+  await expect(unpublishPage({}, idForm(page.id))).resolves.toEqual({});
+  expect((await reload(page.id)).publishedRevisionId).toBeNull();
+  expect(await getPublishedPage(page.slug)).toBeNull();
+  expect(await revisionsOf(page.id)).toHaveLength(1);
+  expect(updateTag).toHaveBeenCalledWith(`page:${page.slug}`);
+});
+
+test("unpublish-signed-out-redirects", async () => {
+  const page = await insertPage("unpublish-signed-out");
+  await expect(unpublishPage({}, idForm(page.id))).rejects.toMatchObject({
+    digest: expect.stringMatching(REDIRECT_TO_SIGN_IN),
+  });
+  expect(await reload(page.id)).toEqual(page);
 });
