@@ -28,6 +28,9 @@ async function SignedInAs() {
       <p>
         Signed in as {user.email} · {user.role === "admin" ? "Admin" : "Editor"}
       </p>
+      <Link href="/admin/pages" className="underline">
+        Pages
+      </Link>
       {/* A hint only: /admin/users runs its own guard. */}
       {user.role === "admin" && (
         <Link href="/admin/users" className="underline">

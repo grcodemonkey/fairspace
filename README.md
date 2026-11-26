@@ -49,6 +49,10 @@ New users are editors. For contributors: call `requireUser()` or `requireAdmin()
 
 In a guarded page, call the guard first, inside the same async `<Suspense>` child that fetches the admin data. Never fetch admin data in the page body or in a sibling component.
 
+## Pages
+
+Admins and editors create pages at `/admin/pages` and edit them in the Puck editor. "Save draft" saves only the draft; it does not change the live page. Publishing comes in a later release.
+
 ## Commands
 
 | Command | What it does |
