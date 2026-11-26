@@ -1,6 +1,11 @@
 // @vitest-environment node
 import { describe, expect, test } from "vitest";
-import { MAX_BYTES, sniffType, validateUpload } from "./media";
+import { ALLOWED_TYPES, MAX_BYTES, mediaUrl, sniffType, validateUpload } from "./media";
+
+test.each(Object.entries(ALLOWED_TYPES))("media-url-shape: %s", (contentType, ext) => {
+  const id = "0b5c6a52-3f43-4a8e-9a39-1e0b0f6c1d11";
+  expect(mediaUrl({ id, contentType })).toBe(`/media/${id}.${ext}`);
+});
 
 const bytes = (...parts: (string | number[])[]) =>
   new Uint8Array(parts.flatMap((p) => (typeof p === "string" ? [...p].map((c) => c.charCodeAt(0)) : p)));

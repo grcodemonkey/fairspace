@@ -10,6 +10,9 @@ export const ALLOWED_TYPES = {
 
 export type AllowedType = keyof typeof ALLOWED_TYPES;
 
+/** A lower-case UUID, as crypto.randomUUID() makes it. Regex source, for media ids in keys and URLs. */
+export const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+
 export const MAX_BYTES = 10 * 1024 * 1024;
 
 /** Bytes that `sniffType` needs from the start of a file. */
@@ -41,3 +44,15 @@ export function sniffType(bytes: Uint8Array): AllowedType | null {
   if (ascii(bytes, 0, "%PDF-")) return "application/pdf";
   return null;
 }
+
+/** Longest alt text the library accepts. */
+export const ALT_MAX = 1000;
+
+/** A finished upload as the library and the picker see it. `alt`: null = not set, '' = decorative. */
+export type MediaItem = { id: string; filename: string; contentType: string; size: number; alt: string | null; url: string };
+
+export const isImage = (contentType: string) => contentType.startsWith("image/");
+
+/** The public URL of a finished upload. The one place that builds it (the serve route parses it back). */
+export const mediaUrl = (row: { id: string; contentType: string }) =>
+  `/media/${row.id}.${ALLOWED_TYPES[row.contentType as AllowedType]}`;

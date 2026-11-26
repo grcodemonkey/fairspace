@@ -124,4 +124,6 @@ export const media = pgTable("media", {
   uploadedBy: text("uploadedBy").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("createdAt", { mode: "date", withTimezone: true }).notNull().defaultNow(),
   uploadedAt: timestamp("uploadedAt", { mode: "date", withTimezone: true }),
+  // null = not set yet (flagged in the library); '' = decorative; #14 renders `alt ?? ''`.
+  alt: text("alt"),
 });
