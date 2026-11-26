@@ -12,5 +12,7 @@ export default defineConfig({
     environment: "jsdom",
     globalSetup: "./vitest.global-setup.ts",
     include: ["src/**/*.test.{ts,tsx}"], // keep Playwright specs out
+    // next-auth imports "next/server" without an extension; Node ESM needs Vite to resolve it.
+    server: { deps: { inline: ["next-auth"] } },
   },
 });

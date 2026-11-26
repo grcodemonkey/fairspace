@@ -15,5 +15,9 @@ services:
       interval: 2s
       timeout: 3s
       retries: 15
+  # Local inbox for magic-link emails: SMTP on 1025, web UI and API on http://localhost:8025.
+  mailpit:
+    image: axllent/mailpit
+    ports: ["127.0.0.1:1025:1025", "127.0.0.1:8025:8025"]
 volumes:
   pgdata:
