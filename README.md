@@ -45,6 +45,8 @@ To create the first admin, set `ADMIN_EMAIL`, open http://localhost:3000/sign-in
 
 New users are editors. For contributors: call `requireUser()` or `requireAdmin()` from `src/guards.ts` in every page, server action and route handler. A layout, a hidden link or proxy is not a guard.
 
+In a guarded page, call the guard first, inside the same async `<Suspense>` child that fetches the admin data. Never fetch admin data in the page body or in a sibling component.
+
 ## Commands
 
 | Command | What it does |
