@@ -36,7 +36,7 @@ Set these in `.env.local` (see `.env.example`):
 
 `pnpm db:up` also starts Mailpit, a local inbox. Read sign-in emails at http://localhost:8025.
 
-To create the first admin, set `ADMIN_EMAIL`, open http://localhost:3000/sign-in, and submit that email. The first sign-in creates the admin. After that, a change to `ADMIN_EMAIL` creates no second admin. After you sign in, you land on `/admin`.
+To create the first admin, set `ADMIN_EMAIL`, open http://localhost:3000/sign-in, and submit that email. The first sign-in creates the admin. After that, a change to `ADMIN_EMAIL` creates no second admin. When no admin exists (for example, the last admin was removed), the next sign-in with `ADMIN_EMAIL` makes that user an admin again. This is the way to recover from a lockout. If you do not want this, remove or change `ADMIN_EMAIL`. After you sign in, you land on `/admin`.
 
 ## Commands
 

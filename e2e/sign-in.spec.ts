@@ -63,21 +63,31 @@ test("an unknown email sees the same page, gets no email, and creates no user", 
   expect(await sql`select 1 from users where email = ${email}`).toHaveLength(0);
 });
 
-test("the first sign-in with ADMIN_EMAIL creates the admin", async ({ page }) => {
-  const email = "admin-e2e@example.com"; // ADMIN_EMAIL in playwright.config.ts
-  // Start from "no admin exists" (unit tests leave no admin behind; they roll back).
-  await sql`delete from users where email = ${email}`;
-  // Mailpit is shared and the address is fixed, so only messages that arrive after the submit count.
-  const before = new Set((await mailpitMessages(email)).map((m) => m.ID));
+const ADMIN_EMAIL = "admin-e2e@example.com"; // ADMIN_EMAIL in playwright.config.ts
 
-  await submitSignIn(page, email.toUpperCase());
+test.describe("first admin", () => {
+  // Start from "no admin exists" in the test database (unit tests roll back and leave no admin).
+  test.beforeAll(async () => {
+    await sql`delete from users where role = 'admin'`;
+  });
+  test.afterAll(async () => {
+    await sql`delete from users where email = ${ADMIN_EMAIL}`;
+  });
 
-  let id: string | undefined;
-  await expect
-    .poll(async () => (id = (await mailpitMessages(email)).find((m) => !before.has(m.ID))?.ID))
-    .toBeTruthy();
-  await page.goto(await linkFrom(id!));
-  await expect(page).toHaveURL(/\/admin$/);
-  await expect(page.getByText(`Signed in as ${email}`)).toBeVisible();
-  expect(await sql`select role from users where email = ${email}`).toEqual([{ role: "admin" }]);
+  test("the first sign-in with ADMIN_EMAIL creates the admin", async ({ page }) => {
+    const email = ADMIN_EMAIL;
+    // Mailpit is shared and the address is fixed, so only messages that arrive after the submit count.
+    const before = new Set((await mailpitMessages(email)).map((m) => m.ID));
+
+    await submitSignIn(page, email.toUpperCase());
+
+    let id: string | undefined;
+    await expect
+      .poll(async () => (id = (await mailpitMessages(email)).find((m) => !before.has(m.ID))?.ID))
+      .toBeTruthy();
+    await page.goto(await linkFrom(id!));
+    await expect(page).toHaveURL(/\/admin$/);
+    await expect(page.getByText(`Signed in as ${email}`)).toBeVisible();
+    expect(await sql`select role from users where email = ${email}`).toEqual([{ role: "admin" }]);
+  });
 });

@@ -84,6 +84,21 @@ describe("ensureFirstAdmin", () => {
     });
   });
 
+  test.each([
+    ["empty", ""],
+    ["unset", undefined],
+  ])("does nothing when ADMIN_EMAIL is %s", async (_, value) => {
+    vi.stubEnv("ADMIN_EMAIL", value);
+    await withNoAdmin(async (tx) => {
+      // An empty email equals an empty ADMIN_EMAIL, so only the guard stops a row here.
+      await ensureFirstAdmin("", tx);
+      const email = adminEmail();
+      await tx.insert(users).values({ email });
+      await ensureFirstAdmin(email, tx);
+      expect(await tx.select().from(users).where(eq(users.role, "admin"))).toEqual([]);
+    });
+  });
+
   test("promotes an existing user while no admin exists", async () => {
     const email = adminEmail();
     vi.stubEnv("ADMIN_EMAIL", email);

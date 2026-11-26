@@ -22,7 +22,8 @@ export async function isKnownEmail(email: string): Promise<boolean> {
 
 /**
  * Makes ADMIN_EMAIL an admin, but only while no admin exists: a later change to ADMIN_EMAIL
- * mints no second admin, and a demoted admin is not promoted again.
+ * mints no second admin, and ADMIN_EMAIL is not promoted while another admin exists.
+ * When zero admins exist, the next ADMIN_EMAIL sign-in becomes admin again (lockout recovery).
  */
 export async function ensureFirstAdmin(email: string, db: Pick<ReturnType<typeof getDb>, "execute"> = getDb()) {
   const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
@@ -32,6 +33,12 @@ export async function ensureFirstAdmin(email: string, db: Pick<ReturnType<typeof
     select ${crypto.randomUUID()}, ${adminEmail}, 'admin'
     where not exists (select 1 from users where role = 'admin')
     on conflict (email) do update set role = 'admin'`);
+}
+
+// Code and message only: the whole Nodemailer error carries the recipient addresses.
+function logSendError(error: unknown) {
+  const { code, message } = error as { code?: string; message?: string };
+  console.error("Sign-in email failed", { code, message });
 }
 
 // Function form: the adapter and db client are built per request, so `next build` needs no DATABASE_URL.
@@ -50,14 +57,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
         ...email,
         // Send after the response, so a known email answers as fast as an unknown one (no timing leak).
         // An SMTP error goes to the server log; showing it to the user would also tell which emails are known.
+        // after() itself is in the try too: a throw here would otherwise fail only on the known-email path.
         async sendVerificationRequest(params) {
-          after(async () => {
-            try {
-              await email.sendVerificationRequest(params);
-            } catch (error) {
-              console.error("Sign-in email failed", error);
-            }
-          });
+          try {
+            after(async () => {
+              try {
+                await email.sendVerificationRequest(params);
+              } catch (error) {
+                logSendError(error);
+              }
+            });
+          } catch (error) {
+            logSendError(error);
+          }
         },
       },
     ],
