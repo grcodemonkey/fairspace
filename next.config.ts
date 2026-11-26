@@ -4,6 +4,8 @@ const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
+  // Enables forbidden() (still experimental in 16.4).
+  experimental: { authInterrupts: true },
   turbopack: {
     rules: {
       "*.css": {

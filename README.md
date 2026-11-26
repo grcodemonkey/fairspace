@@ -38,6 +38,15 @@ Set these in `.env.local` (see `.env.example`):
 
 To create the first admin, set `ADMIN_EMAIL`, open http://localhost:3000/sign-in, and submit that email. The first sign-in creates the admin. After that, a change to `ADMIN_EMAIL` creates no second admin. When no admin exists (for example, the last admin was removed), the next sign-in with `ADMIN_EMAIL` makes that user an admin again. This is the way to recover from a lockout. If you do not want this, remove or change `ADMIN_EMAIL`. After you sign in, you land on `/admin`.
 
+## Roles
+
+- **Admin** can do everything: users, settings, menu and pages.
+- **Editor** can create, edit and publish pages and posts.
+
+New users are editors. For contributors: call `requireUser()` or `requireAdmin()` from `src/guards.ts` in every page, server action and route handler. A layout, a hidden link or proxy is not a guard.
+
+In a guarded page, call the guard first, inside the same async `<Suspense>` child that fetches the admin data. Never fetch admin data in the page body or in a sibling component.
+
 ## Commands
 
 | Command | What it does |
