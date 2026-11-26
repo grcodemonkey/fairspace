@@ -5,6 +5,7 @@ import { afterAll, beforeEach, expect, test, vi } from "vitest";
 import { auth } from "@/auth";
 import { getDb } from "@/db";
 import { pageRevisions, pages, users } from "@/db/schema";
+import { allBlocksFixture } from "@/puck/all-blocks.fixture";
 import { createPage, saveDraft } from "./actions";
 
 vi.mock("@/auth", () => ({ auth: vi.fn() }));
@@ -96,6 +97,30 @@ test("save-draft-updates-page-title", async () => {
   // An empty root title keeps the old one.
   await saveDraft(page.id, { root: { props: { title: " " } }, content: [] });
   expect((await reload(page.id)).title).toBe("New title");
+});
+
+test("save-draft-unsafe-link-message", async () => {
+  signedInAsEditor();
+  const page = await insertPage("unsafe-link");
+  const bad = {
+    root: { props: { title: "Changed" } },
+    content: [{ type: "Button", props: { id: "b", label: "Go", href: "javascript:alert(1)", variant: "primary" } }],
+  };
+  await expect(saveDraft(page.id, bad)).resolves.toEqual({
+    error: "A Button link must start with https://, http://, mailto:, tel:, / or #.",
+  });
+  expect(await reload(page.id)).toEqual(page);
+});
+
+test("save-draft-sanitizes-rich-text", async () => {
+  signedInAsEditor();
+  const page = await insertPage("rich-text");
+  const data = allBlocksFixture();
+  data.content[2].props.body = '<p>Hi<script>alert(1)</script><img src=x onerror="alert(1)"></p>';
+  await expect(saveDraft(page.id, data)).resolves.toEqual({ ok: true });
+  const stored = JSON.stringify((await reload(page.id)).draft);
+  expect(stored).toContain("<p>Hi</p>");
+  expect(stored).not.toMatch(/script|onerror|alert/i);
 });
 
 test("save-draft-non-string-id-rejected", async () => {

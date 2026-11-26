@@ -6,7 +6,7 @@ import { getDb } from "@/db";
 import { pages } from "@/db/schema";
 import { requireUser } from "@/guards";
 import { normalizeSlug, RESERVED_SLUGS, SLUG_FORMAT } from "@/puck/slug";
-import { parsePageData } from "@/puck/validate";
+import { PageDataError, parsePageData } from "@/puck/validate";
 
 // The typed values come back with the error: React resets the form after an action.
 export type CreatePageState = { error?: string; title?: string; slug?: string };
@@ -45,8 +45,8 @@ export async function saveDraft(id: string, data: unknown): Promise<{ ok: true }
   let draft;
   try {
     draft = parsePageData(data);
-  } catch {
-    return { error: "The page data is not valid." };
+  } catch (error) {
+    return { error: error instanceof PageDataError ? error.message : "The page data is not valid." };
   }
   // The root Title field is the source of the page title, so the list never shows a stale one.
   const title = typeof draft.root.props?.title === "string" ? draft.root.props.title.trim() : "";

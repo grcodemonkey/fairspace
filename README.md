@@ -55,6 +55,8 @@ Admins and editors create pages at `/admin/pages` and edit them in the Puck edit
 
 A published page shows at `/<slug>`. The page with slug `home` shows at `/`, and `/home` redirects to `/`. Public pages need no sign-in and show only the published revision, never the draft. Until a `home` page is published, `/` shows the welcome text.
 
+Blocks: Hero, Heading, Rich text, Button and Columns (2–4 columns that stack on mobile). The server checks every block value on save. Links must start with `https://`, `http://`, `mailto:`, `tel:`, `/` or `#`; rich text is cleaned to a short list of safe tags.
+
 ## Media storage
 
 Signed-in users upload images and PDFs at `/admin/media`. The browser sends the file straight to an S3-compatible bucket with a presigned PUT URL. The URL is valid for 5 minutes and is signed for one key, one Content-Type and one Content-Length. After the upload, the server reads the object's size and first bytes. If they do not match the declared type, the server deletes the object.
