@@ -29,7 +29,7 @@ export async function inviteUser(email: string, role: Role = "editor", db: Db = 
 
 // Locks every admin row first, so two admins demoting each other at the same time cannot leave zero admins.
 async function isLastAdmin(tx: Tx, id: string) {
-  const admins = await tx.select({ id: users.id }).from(users).where(eq(users.role, "admin")).for("update");
+  const admins = await tx.select({ id: users.id }).from(users).where(eq(users.role, "admin")).orderBy(users.id).for("update");
   return admins.length === 1 && admins[0].id === id;
 }
 

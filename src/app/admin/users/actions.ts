@@ -24,7 +24,13 @@ export async function inviteAction(_: ActionState, formData: FormData): Promise<
   const result = await inviteUser(email, role);
   if (result.error) return result;
   // The normal magic-link email. redirect: false keeps the admin on this page; the admin's session cookie is not touched.
-  await signIn("nodemailer", { email, redirectTo: "/admin", redirect: false });
+  try {
+    await signIn("nodemailer", { email, redirectTo: "/admin", redirect: false });
+  } catch {
+    // The user row exists now: show it, and tell the admin how the user can still sign in.
+    refresh();
+    return { error: "Invited, but the email failed. Ask them to sign in at /sign-in." };
+  }
   refresh();
   return { message: `Invited ${email}.` };
 }

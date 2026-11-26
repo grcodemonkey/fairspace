@@ -12,7 +12,7 @@ test.afterAll(async () => {
   await sql.end();
 });
 
-async function signInAs(context: BrowserContext,baseURL: string, role: "admin" | "editor") {
+async function signInAs(context: BrowserContext, baseURL: string, role: "admin" | "editor") {
   const user = await seedSession(sql, context, baseURL, role);
   seededIds.push(user.id);
   return user;
