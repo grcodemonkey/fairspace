@@ -32,6 +32,10 @@ jobs:
           --health-interval 2s
           --health-timeout 3s
           --health-retries 15
+      # Inbox for the magic-link e2e test.
+      mailpit:
+        image: axllent/mailpit
+        ports: ["1025:1025", "8025:8025"]
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -43,5 +47,7 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      # No DATABASE_URL or AUTH_SECRET here: proves the build needs no secrets. e2e then runs `pnpm start`.
+      - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm e2e
