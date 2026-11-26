@@ -35,7 +35,7 @@ Set these in `.env.local` (see `.env.example`):
 
 `pnpm db:up` also starts Mailpit, a local inbox. Read sign-in emails at http://localhost:8025.
 
-Until there is an admin bootstrap, add a user with SQL (use a lower-case email):
+Until there is an admin bootstrap, add a user with SQL:
 
 ```sh
 docker compose exec db psql -U fairspace -c "insert into users (id, email) values (gen_random_uuid(), 'me@example.com')"

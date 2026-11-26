@@ -25,7 +25,8 @@ CREATE TABLE "users" (
 	"email" text,
 	"emailVerified" timestamp,
 	"image" text,
-	CONSTRAINT "users_email_unique" UNIQUE("email")
+	CONSTRAINT "users_email_unique" UNIQUE("email"),
+	CONSTRAINT "users_email_lower_case" CHECK ("users"."email" = lower("users"."email"))
 );
 --> statement-breakpoint
 CREATE TABLE "verification_tokens" (

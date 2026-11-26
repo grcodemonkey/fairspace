@@ -2,6 +2,8 @@ import { expect, test } from "@playwright/test";
 import postgres from "postgres";
 
 const MAILPIT = "http://localhost:8025";
+// Written out, not imported from src/auth.ts, so the test also catches a change to Auth.js's own redirect.
+const CHECK_EMAIL_URL = "http://localhost:3000/sign-in/check-email?provider=nodemailer&type=email";
 const sql = postgres(process.env.DATABASE_URL!, { max: 1 });
 
 test.afterAll(() => sql.end());
@@ -19,6 +21,8 @@ async function submitSignIn(page: import("@playwright/test").Page, email: string
   await page.getByLabel("Email").fill(email);
   await page.getByRole("button", { name: "Email me a sign-in link" }).click();
   await expect(page.getByRole("heading", { name: "Check your email" })).toBeVisible();
+  // Known and unknown emails must end on this exact URL, or the URL shows which emails have an account.
+  await expect(page).toHaveURL(CHECK_EMAIL_URL);
 }
 
 test("a known user signs in with a magic link and signs out", async ({ page }) => {

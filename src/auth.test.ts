@@ -23,6 +23,10 @@ test("an unknown email is not known", async () => {
   expect(await isKnownEmail(`unknown-${crypto.randomUUID()}@example.com`)).toBe(false);
 });
 
-test("the lookup ignores case", async () => {
+test("the lookup lower-cases the input", async () => {
   expect(await isKnownEmail(email.toUpperCase())).toBe(true);
+});
+
+test("the database rejects a mixed-case email", async () => {
+  await expect(getDb().insert(users).values({ email: `Mixed-${crypto.randomUUID()}@Example.com` })).rejects.toThrow();
 });
