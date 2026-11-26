@@ -1,6 +1,9 @@
 import { sql } from "drizzle-orm";
-import { check, integer, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import { check, integer, pgEnum, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
+
+// What a user may do. New users are editors; the first admin comes from ADMIN_EMAIL.
+export const userRole = pgEnum("user_role", ["admin", "editor"]);
 
 // Auth.js Drizzle adapter tables (https://authjs.dev/getting-started/adapters/drizzle) with plural names.
 // No password column: sign-in is by email magic link only.
@@ -14,6 +17,7 @@ export const users = pgTable(
     email: text("email").unique(),
     emailVerified: timestamp("emailVerified", { mode: "date" }),
     image: text("image"),
+    role: userRole("role").notNull().default("editor"),
   },
   // Auth.js looks users up by the lower-cased email, so a mixed-case row would get a duplicate user.
   (user) => [check("users_email_lower_case", sql`${user.email} = lower(${user.email})`)],

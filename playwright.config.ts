@@ -24,6 +24,7 @@ export default defineConfig({
       AUTH_URL: "http://localhost:3000",
       EMAIL_SERVER: "smtp://localhost:1025",
       EMAIL_FROM: "Fairspace <noreply@localhost>",
+      ADMIN_EMAIL: "admin-e2e@example.com",
     },
   },
 });
