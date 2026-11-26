@@ -25,7 +25,7 @@ export async function setupStorage(env: NodeJS.ProcessEnv = process.env) {
             {
               AllowedOrigins: [env.AUTH_URL ?? "http://localhost:3000"],
               AllowedMethods: ["PUT", "GET", "HEAD"],
-              AllowedHeaders: ["*"],
+              AllowedHeaders: ["Content-Type"],
               MaxAgeSeconds: 3600,
             },
           ],

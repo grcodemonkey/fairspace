@@ -32,15 +32,15 @@ test("editor-uploads-image", async ({ page, context, baseURL }) => {
   await signInAs(context, baseURL!, "editor");
   await page.goto("/admin");
   await page.getByRole("link", { name: "Media" }).click();
-  await expect(page.getByRole("heading", { name: "Media" })).toBeVisible();
+  await expect(page.getByLabel("Upload a file")).toBeEnabled(); // enabled once hydrated
   await page.getByLabel("Upload a file").setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: PNG });
   await expect(page.getByRole("status")).toHaveText("Uploaded logo.png");
 });
 
 test("svg-refused", async ({ page, context, baseURL }) => {
   await signInAs(context, baseURL!, "editor");
-  // networkidle: a file picked before hydration has no onChange handler yet.
-  await page.goto("/admin/media", { waitUntil: "networkidle" });
+  await page.goto("/admin/media");
+  await expect(page.getByLabel("Upload a file")).toBeEnabled(); // enabled once hydrated
   const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
   await page.getByLabel("Upload a file").setInputFiles({ name: "logo.svg", mimeType: "image/svg+xml", buffer: svg });
   await expect(page.getByRole("status")).toHaveText(/Only JPEG, PNG, WebP, GIF, AVIF and PDF/);
@@ -48,8 +48,8 @@ test("svg-refused", async ({ page, context, baseURL }) => {
 
 test("renamed-file-refused", async ({ page, context, baseURL }) => {
   await signInAs(context, baseURL!, "editor");
-  // networkidle: a file picked before hydration has no onChange handler yet.
-  await page.goto("/admin/media", { waitUntil: "networkidle" });
+  await page.goto("/admin/media");
+  await expect(page.getByLabel("Upload a file")).toBeEnabled(); // enabled once hydrated
   const html = Buffer.from("<html><script>alert(1)</script></html>");
   await page.getByLabel("Upload a file").setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: html });
   await expect(page.getByRole("status")).toHaveText("The file content does not match its type.");

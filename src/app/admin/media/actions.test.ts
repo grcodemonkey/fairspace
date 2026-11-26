@@ -1,6 +1,6 @@
 // @vitest-environment node
 // Integration: real test database and the SeaweedFS test bucket (pnpm db:up).
-import { HeadObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import { getDb } from "@/db";
@@ -44,7 +44,7 @@ test("presign-scoped-key", async () => {
   if (!result.ok) throw new Error(result.error);
   const url = new URL(result.url);
   const row = await rowOf(result.id);
-  expect(row.key).toBe(`media/${result.id}.png`); // the server picks the key, not the filename
+  expect(row.key).toBe(`uploads/${result.id}`); // the server picks the staging key, not the filename
   expect(url.pathname).toBe(`/fairspace-test/${row.key}`);
   expect(Number(url.searchParams.get("X-Amz-Expires"))).toBeLessThanOrEqual(300);
   expect(url.searchParams.get("X-Amz-SignedHeaders")).toBe("content-length;content-type;host");
@@ -52,9 +52,27 @@ test("presign-scoped-key", async () => {
 
   expect((await put(result.url, PNG)).status).toBe(200);
   expect(await finishUpload(result.id)).toEqual({ ok: true, filename: "../../etc/passwd.png" });
-  expect((await rowOf(result.id)).uploadedAt).toBeInstanceOf(Date);
+  const done = await rowOf(result.id);
+  expect(done.key).toBe(`media/${result.id}.png`);
+  expect(done.uploadedAt).toBeInstanceOf(Date);
+  expect(await objectExists(done.key)).toBe(true);
+  expect(await objectExists(`uploads/${result.id}`)).toBe(false);
   // A finished upload cannot be finished again.
   expect(await finishUpload(result.id)).toMatchObject({ ok: false });
+});
+
+test("overwrite-after-finish", async () => {
+  const result = await createUpload({ filename: "a.png", type: "image/png", size: PNG.length });
+  if (!result.ok) throw new Error(result.error);
+  await put(result.url, PNG);
+  expect(await finishUpload(result.id)).toMatchObject({ ok: true });
+
+  // The URL is still valid, but it only writes the staging key; the checked object in media/ stays the same.
+  const evil = new Uint8Array(PNG.length).fill(0x3c);
+  await put(result.url, evil);
+  const { client, bucket } = getStorage();
+  const final = await client.send(new GetObjectCommand({ Bucket: bucket, Key: `media/${result.id}.png` }));
+  expect(await final.Body!.transformToByteArray()).toEqual(PNG);
 });
 
 test("bucket-refuses-other-body", async () => {

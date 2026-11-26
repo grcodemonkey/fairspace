@@ -59,6 +59,8 @@ Signed-in users upload images and PDFs at `/admin/media`. The browser sends the 
 
 - Allowed types: JPEG, PNG, WebP, GIF, AVIF and PDF. No SVG, because an SVG can contain script.
 - Size limit: 10 MB.
+- Known limit: AVIF files with the major brand `mif1` (not `avif`) are refused.
+- The browser uploads to `uploads/<id>`. After the checks, the server copies the file to `media/<id>.<ext>`. Only the server writes to `media/`.
 
 | Variable | Value |
 | --- | --- |
@@ -73,7 +75,7 @@ Locally, `pnpm db:up` starts SeaweedFS (S3 API on http://localhost:8333) and cre
 In production (Cloudflare R2, Backblaze B2, AWS S3 or another S3-compatible service):
 
 1. Create a private bucket. Do not allow public writes.
-2. Add a CORS rule that allows `PUT` from your site origin (for example `https://example.com`) with the `Content-Type` header. Without it, the browser cannot upload, even though the server works.
+2. Add a CORS rule: allowed origin is your exact site origin (for example `https://example.com`, no wildcard), allowed method is `PUT` only, allowed header is `Content-Type` only. Without it, the browser cannot upload, even though the server works.
 3. Create an access key that can read, write and delete objects in this bucket only. Set the `S3_*` variables.
 
 ## Commands

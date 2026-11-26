@@ -36,6 +36,7 @@ export function sniffType(bytes: Uint8Array): AllowedType | null {
   if (ascii(bytes, 0, "\x89PNG\r\n\x1a\n")) return "image/png";
   if (ascii(bytes, 0, "GIF87a") || ascii(bytes, 0, "GIF89a")) return "image/gif";
   if (ascii(bytes, 0, "RIFF") && ascii(bytes, 8, "WEBP")) return "image/webp";
+  // Known limit: AVIF with major brand "mif1" is refused.
   if (ascii(bytes, 4, "ftyp") && (ascii(bytes, 8, "avif") || ascii(bytes, 8, "avis"))) return "image/avif";
   if (ascii(bytes, 0, "%PDF-")) return "application/pdf";
   return null;

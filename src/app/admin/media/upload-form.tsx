@@ -1,13 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { ALLOWED_TYPES } from "@/media";
 import { createUpload, finishUpload } from "./actions";
+
+const subscribeNothing = () => () => {};
 
 // Browser → createUpload (presigned URL) → PUT straight to the bucket → finishUpload (server checks the bytes).
 export function UploadForm() {
   const [status, setStatus] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  // Disabled until hydrated: a file picked earlier would have no onChange handler.
+  // false on the server and during hydration, true after; no setState-in-effect.
+  const ready = useSyncExternalStore(subscribeNothing, () => true, () => false);
 
   async function upload(file: File) {
     setBusy(true);
@@ -15,10 +20,9 @@ export function UploadForm() {
     try {
       const created = await createUpload({ filename: file.name, type: file.type, size: file.size });
       if (!created.ok) return setStatus(created.error);
-      const put = await fetch(created.url, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
       // A failed PUT still goes to finishUpload, which removes the pending row.
+      await fetch(created.url, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
       const finished = await finishUpload(created.id);
-      if (!put.ok && finished.ok) return setStatus("Upload failed.");
       setStatus(finished.ok ? `Uploaded ${finished.filename}` : finished.error);
     } catch {
       setStatus("Upload failed.");
@@ -35,7 +39,7 @@ export function UploadForm() {
         <input
           type="file"
           accept={Object.keys(ALLOWED_TYPES).join(",")}
-          disabled={busy}
+          disabled={busy || !ready}
           onChange={(e) => {
             const file = e.currentTarget.files?.[0];
             e.currentTarget.value = "";
