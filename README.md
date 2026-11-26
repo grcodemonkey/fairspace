@@ -43,6 +43,8 @@ To create the first admin, set `ADMIN_EMAIL`, open http://localhost:3000/sign-in
 - **Admin** can do everything: users, settings, menu and pages.
 - **Editor** can create, edit and publish pages and posts.
 
+Admins invite users, change roles and remove users at `/admin/users`. An invite sends the normal sign-in link. The last admin cannot be changed to editor or removed. Removing a user signs them out at once.
+
 New users are editors. For contributors: call `requireUser()` or `requireAdmin()` from `src/guards.ts` in every page, server action and route handler. A layout, a hidden link or proxy is not a guard.
 
 In a guarded page, call the guard first, inside the same async `<Suspense>` child that fetches the admin data. Never fetch admin data in the page body or in a sibling component.

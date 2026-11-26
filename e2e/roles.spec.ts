@@ -1,19 +1,14 @@
 import { type BrowserContext, expect, test } from "@playwright/test";
 import postgres from "postgres";
+import { signInAs as seedSession } from "./helpers";
 
 const sql = postgres(process.env.DATABASE_URL!, { max: 1 });
 const seeded: string[] = [];
 
-// Skips Mailpit: a users row plus a sessions row is what a magic-link sign-in leaves behind.
 async function signInAs(context: BrowserContext, baseURL: string, role: "admin" | "editor") {
-  const id = crypto.randomUUID();
-  const email = `${role}-${id}@example.com`;
-  const token = crypto.randomUUID();
-  await sql`insert into users (id, email, role) values (${id}, ${email}, ${role})`;
-  await sql`insert into sessions ("sessionToken", "userId", expires) values (${token}, ${id}, now() + interval '1 day')`;
-  seeded.push(id);
-  await context.addCookies([{ name: "authjs.session-token", value: token, url: baseURL }]);
-  return { id, email };
+  const user = await seedSession(sql, context, baseURL, role);
+  seeded.push(user.id);
+  return user;
 }
 
 // The cascade removes the sessions.

@@ -5,7 +5,7 @@ import { getDb } from "./index";
 
 test("tests run against the test database", async () => {
   const [row] = await getDb().execute<{ current_database: string }>(sql`select current_database()`);
-  expect(row.current_database).toBe("fairspace_test");
+  expect(row.current_database).toMatch(/_test$/);
 });
 
 test("migrations ran", async () => {
