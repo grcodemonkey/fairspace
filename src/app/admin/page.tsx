@@ -31,6 +31,9 @@ async function SignedInAs() {
       <Link href="/admin/pages" className="underline">
         Pages
       </Link>
+      <Link href="/admin/media" className="underline">
+        Media
+      </Link>
       {/* A hint only: /admin/users runs its own guard. */}
       {user.role === "admin" && (
         <Link href="/admin/users" className="underline">

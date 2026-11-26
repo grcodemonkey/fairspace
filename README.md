@@ -53,6 +53,29 @@ In a guarded page, call the guard first, inside the same async `<Suspense>` chil
 
 Admins and editors create pages at `/admin/pages` and edit them in the Puck editor. "Save draft" saves only the draft; it does not change the live page. Publishing comes in a later release.
 
+## Media storage
+
+Signed-in users upload images and PDFs at `/admin/media`. The browser sends the file straight to an S3-compatible bucket with a presigned PUT URL. The URL is valid for 5 minutes and is signed for one key, one Content-Type and one Content-Length. After the upload, the server reads the object's size and first bytes. If they do not match the declared type, the server deletes the object.
+
+- Allowed types: JPEG, PNG, WebP, GIF, AVIF and PDF. No SVG, because an SVG can contain script.
+- Size limit: 10 MB.
+
+| Variable | Value |
+| --- | --- |
+| `S3_ENDPOINT` | The S3 API URL. Leave it empty for AWS S3. |
+| `S3_REGION` | `auto` for R2 and SeaweedFS; the bucket region for AWS and B2 |
+| `S3_BUCKET` | The bucket name |
+| `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | An access key for this bucket only |
+| `S3_FORCE_PATH_STYLE` | `true` for SeaweedFS and B2 |
+
+Locally, `pnpm db:up` starts SeaweedFS (S3 API on http://localhost:8333) and creates the `fairspace` bucket with CORS for `AUTH_URL`. Tests use the `fairspace-test` bucket.
+
+In production (Cloudflare R2, Backblaze B2, AWS S3 or another S3-compatible service):
+
+1. Create a private bucket. Do not allow public writes.
+2. Add a CORS rule that allows `PUT` from your site origin (for example `https://example.com`) with the `Content-Type` header. Without it, the browser cannot upload, even though the server works.
+3. Create an access key that can read, write and delete objects in this bucket only. Set the `S3_*` variables.
+
 ## Commands
 
 | Command | What it does |
@@ -63,7 +86,7 @@ Admins and editors create pages at `/admin/pages` and edit them in the Puck edit
 | `pnpm build` | Production build |
 | `pnpm lint` | ESLint |
 | `pnpm typecheck` | Generate route types, then `tsc --noEmit` |
-| `pnpm db:up` | Start local Postgres and Mailpit (Docker) and wait until ready |
+| `pnpm db:up` | Start local Postgres, Mailpit and SeaweedFS (Docker), wait until ready, then create the media bucket |
 | `pnpm db:down` | Stop local Postgres (data stays in the volume) |
 | `pnpm db:generate` | Generate a migration from `src/db/schema.ts` |
 | `pnpm db:migrate` | Apply migrations to the dev database |

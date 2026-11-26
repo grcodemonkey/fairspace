@@ -111,3 +111,17 @@ export const pageRevisions = pgTable(
   // For a page's revision list and for the cascade on page delete.
   (revision) => [index("page_revisions_page_id_idx").on(revision.pageId)],
 );
+
+// Uploaded files. The object is in the S3 bucket at `key`; uploadedAt stays null while the upload is pending.
+export const media = pgTable("media", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  key: text("key").notNull().unique(),
+  filename: text("filename").notNull(),
+  contentType: text("contentType").notNull(),
+  size: integer("size").notNull(),
+  uploadedBy: text("uploadedBy").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("createdAt", { mode: "date", withTimezone: true }).notNull().defaultNow(),
+  uploadedAt: timestamp("uploadedAt", { mode: "date", withTimezone: true }),
+});
