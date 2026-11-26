@@ -16,6 +16,13 @@ async function mailpitMessages(to: string): Promise<{ ID: string }[]> {
   return (await res.json()).messages ?? [];
 }
 
+async function linkFrom(id: string): Promise<string> {
+  const message = await (await fetch(`${MAILPIT}/api/v1/message/${id}`)).json();
+  const link = (message.Text as string).match(/http\S+\/api\/auth\/callback\/nodemailer\?\S+/)?.[0];
+  expect(link).toBeTruthy();
+  return link!;
+}
+
 async function submitSignIn(page: import("@playwright/test").Page, email: string) {
   await page.goto("/sign-in");
   await page.getByLabel("Email").fill(email);
@@ -33,11 +40,8 @@ test("a known user signs in with a magic link and signs out", async ({ page }) =
 
   await expect.poll(async () => (await mailpitMessages(email)).length).toBe(1);
   const [{ ID }] = await mailpitMessages(email);
-  const message = await (await fetch(`${MAILPIT}/api/v1/message/${ID}`)).json();
-  const link = (message.Text as string).match(/http\S+\/api\/auth\/callback\/nodemailer\?\S+/)?.[0];
-  expect(link).toBeTruthy();
 
-  await page.goto(link!);
+  await page.goto(await linkFrom(ID));
   await expect(page).toHaveURL(/\/admin$/);
   await expect(page.getByText(`Signed in as ${email}`)).toBeVisible();
 
@@ -57,4 +61,23 @@ test("an unknown email sees the same page, gets no email, and creates no user", 
 
   expect(await mailpitMessages(email)).toHaveLength(0);
   expect(await sql`select 1 from users where email = ${email}`).toHaveLength(0);
+});
+
+test("the first sign-in with ADMIN_EMAIL creates the admin", async ({ page }) => {
+  const email = "admin-e2e@example.com"; // ADMIN_EMAIL in playwright.config.ts
+  // Start from "no admin exists" (unit tests leave no admin behind; they roll back).
+  await sql`delete from users where email = ${email}`;
+  // Mailpit is shared and the address is fixed, so only messages that arrive after the submit count.
+  const before = new Set((await mailpitMessages(email)).map((m) => m.ID));
+
+  await submitSignIn(page, email.toUpperCase());
+
+  let id: string | undefined;
+  await expect
+    .poll(async () => (id = (await mailpitMessages(email)).find((m) => !before.has(m.ID))?.ID))
+    .toBeTruthy();
+  await page.goto(await linkFrom(id!));
+  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page.getByText(`Signed in as ${email}`)).toBeVisible();
+  expect(await sql`select role from users where email = ${email}`).toEqual([{ role: "admin" }]);
 });

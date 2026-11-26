@@ -32,16 +32,11 @@ Set these in `.env.local` (see `.env.example`):
 | `AUTH_URL` | Public site URL. Magic links use it. Set it on self-hosted installs. |
 | `EMAIL_SERVER` | SMTP URL. Local: `smtp://localhost:1025`. Resend: `smtp://resend:<API_KEY>@smtp.resend.com:465`. |
 | `EMAIL_FROM` | Sender address, for example `Fairspace <noreply@example.org>`. |
+| `ADMIN_EMAIL` | Email of the first admin. Used only while no admin exists. |
 
 `pnpm db:up` also starts Mailpit, a local inbox. Read sign-in emails at http://localhost:8025.
 
-Until there is an admin bootstrap, add a user with SQL:
-
-```sh
-docker compose exec db psql -U fairspace -c "insert into users (id, email) values (gen_random_uuid(), 'me@example.com')"
-```
-
-Then open http://localhost:3000/sign-in. After you sign in, you land on `/admin`.
+To create the first admin, set `ADMIN_EMAIL`, open http://localhost:3000/sign-in, and submit that email. The first sign-in creates the admin. After that, a change to `ADMIN_EMAIL` creates no second admin. After you sign in, you land on `/admin`.
 
 ## Commands
 
