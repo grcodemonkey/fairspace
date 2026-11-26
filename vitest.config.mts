@@ -9,7 +9,7 @@ process.env.DATABASE_URL =
 Object.assign(process.env, {
   S3_ENDPOINT: "http://localhost:8333",
   S3_REGION: "auto",
-  S3_BUCKET: "fairspace-test",
+  S3_BUCKET: process.env.TEST_S3_BUCKET || "fairspace-test", // own bucket when test runs share one SeaweedFS
   S3_ACCESS_KEY_ID: "fairspace",
   S3_SECRET_ACCESS_KEY: "fairspace",
   S3_FORCE_PATH_STYLE: "true",

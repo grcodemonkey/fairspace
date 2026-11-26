@@ -2,24 +2,21 @@
 
 import { CopyObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, like } from "drizzle-orm";
+import { refresh } from "next/cache";
+import { after } from "next/server";
 import { getDb } from "@/db";
 import { media } from "@/db/schema";
 import { requireUser } from "@/guards";
-import { ALLOWED_TYPES, MAX_BYTES, SNIFF_BYTES, sniffType, validateUpload } from "@/media";
-import { getStorage } from "@/storage";
+import { ALLOWED_TYPES, ALT_MAX, MAX_BYTES, type MediaItem, SNIFF_BYTES, sniffType, validateUpload } from "@/media";
+import { findMediaUsage, listMedia, sweepPendingUploads } from "@/media-library";
+import { getStorage, isNotFound } from "@/storage";
 
 const UPLOAD_URL_SECONDS = 300;
 
 // `user.id!`: database sessions put the whole users row on session.user, so the id is always set.
 
 type Result<T> = ({ ok: true } & T) | { ok: false; error: string };
-
-/** S3 "no such object" errors. Any other S3 error is transient: rethrow it and keep the row pending. */
-const isNotFound = (e: unknown) =>
-  (e as { name?: string }).name === "NotFound" ||
-  (e as { name?: string }).name === "NoSuchKey" ||
-  (e as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode === 404;
 
 /**
  * Step 1: checks the declared type and size, then returns a presigned PUT URL for a staging key
@@ -50,9 +47,10 @@ export async function createUpload(input: {
     // Without this the presigner leaves Content-Type unsigned, and the browser could store any type.
     { expiresIn: UPLOAD_URL_SECONDS, signableHeaders: new Set(["content-type"]) },
   );
-  // shortcut: a browser that never calls finishUpload leaves a pending row and maybe a staging object, and a PUT
-  // after finish (URL still valid) leaves a stray `uploads/` object; add a sweeper or an `uploads/` lifecycle rule with #9.
+  // An abandoned upload (no finishUpload, or a PUT after finish) is removed by sweepPendingUploads.
   await getDb().insert(media).values({ id, key, filename, contentType: type, size: input.size, uploadedBy: user.id! });
+  // After the response: no latency, and no cron. A sweep error never fails the upload.
+  after(() => sweepPendingUploads().catch((e) => console.error("sweepPendingUploads failed", e)));
   return { ok: true, id, url };
 }
 
@@ -103,7 +101,67 @@ export async function finishUpload(id: string): Promise<Result<{ filename: strin
     return { ok: false, error: "The file content does not match its type." };
   }
   await db.update(media).set({ key: finalKey, uploadedAt: new Date() }).where(eq(media.id, row.id));
-  // The checked copy is safe in `media/`; a failed delete leaves only a stray `uploads/` object (see shortcut above).
+  // The checked copy is safe in `media/`; a failed delete leaves only a stray `uploads/` object for the sweeper.
   await client.send(new DeleteObjectCommand(staging)).catch(() => {});
+  refresh(); // the library shows the new file
   return { ok: true, filename: row.filename };
+}
+
+export type ActionState = { error?: string };
+
+const idFrom = (formData: FormData) => {
+  const id = formData.get("id");
+  return typeof id === "string" ? id : "";
+};
+
+/** Any signed-in user may set alt text on any file (a shared library). Images only. */
+export async function updateAltAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  await requireUser();
+  const raw = formData.get("alt");
+  const alt = formData.get("decorative") ? "" : typeof raw === "string" ? raw.trim() : "";
+  if (alt.length > ALT_MAX) return { error: `Alt text can be at most ${ALT_MAX} characters.` };
+  if (!alt && !formData.get("decorative")) return { error: "Enter alt text, or mark the image as decorative." };
+  const updated = await getDb()
+    .update(media)
+    .set({ alt })
+    .where(and(eq(media.id, idFrom(formData)), isNotNull(media.uploadedAt), like(media.contentType, "image/%")))
+    .returning({ id: media.id });
+  if (!updated.length) return { error: "Image not found." };
+  refresh();
+  return {};
+}
+
+/** Editors delete their own uploads; admins delete any. Refused while a page draft or live page uses the file. */
+export async function deleteMediaAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  const user = await requireUser();
+  const db = getDb();
+  const [row] = await db
+    .select()
+    .from(media)
+    .where(and(eq(media.id, idFrom(formData)), isNotNull(media.uploadedAt)));
+  if (!row) return { error: "File not found." };
+  if (user.role !== "admin" && row.uploadedBy !== user.id) return { error: "You can delete only your own uploads." };
+  const pages = await findMediaUsage(row.id);
+  if (pages.length) {
+    return { error: `Used on: ${pages.map((p) => p.title).join(", ")}. Remove it from these pages first.` };
+  }
+  await db.delete(media).where(eq(media.id, row.id));
+  // Row first: a failed object delete leaves only an unreferenced object, which is safe.
+  const { client, bucket } = getStorage();
+  await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: row.key })).catch(() => {});
+  refresh();
+  return {};
+}
+
+/** The picker's list. A server action, so `requireUser()` (which redirects) is the right guard. */
+export async function listMediaAction({ imagesOnly = true } = {}): Promise<MediaItem[]> {
+  await requireUser();
+  return (await listMedia({ imagesOnly: Boolean(imagesOnly) })).map(({ id, filename, contentType, size, alt, url }) => ({
+    id,
+    filename,
+    contentType,
+    size,
+    alt,
+    url,
+  }));
 }

@@ -7,7 +7,8 @@ import { createUpload, finishUpload } from "./actions";
 const subscribeNothing = () => () => {};
 
 // Browser → createUpload (presigned URL) → PUT straight to the bucket → finishUpload (server checks the bytes).
-export function UploadForm() {
+// onUploaded: the picker reloads its list and selects the new file.
+export function UploadForm({ onUploaded }: { onUploaded?: (id: string) => void } = {}) {
   const [status, setStatus] = useState<string>("");
   const [busy, setBusy] = useState(false);
   // Disabled until hydrated: a file picked earlier would have no onChange handler.
@@ -24,6 +25,7 @@ export function UploadForm() {
       await fetch(created.url, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
       const finished = await finishUpload(created.id);
       setStatus(finished.ok ? `Uploaded ${finished.filename}` : finished.error);
+      if (finished.ok) onUploaded?.(created.id);
     } catch {
       setStatus("Upload failed.");
     } finally {

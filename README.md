@@ -72,13 +72,24 @@ Signed-in users upload images and PDFs at `/admin/media`. The browser sends the 
 | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | An access key for this bucket only |
 | `S3_FORCE_PATH_STYLE` | `true` for SeaweedFS and B2 |
 
-Locally, `pnpm db:up` starts SeaweedFS (S3 API on http://localhost:8333) and creates the `fairspace` bucket with CORS for `AUTH_URL`. Tests use the `fairspace-test` bucket.
+Locally, `pnpm db:up` starts SeaweedFS (S3 API on http://localhost:8333) and creates the `fairspace` bucket with CORS for `AUTH_URL`. Tests use the `fairspace-test` bucket (set `TEST_S3_BUCKET` to use another one).
 
 In production (Cloudflare R2, Backblaze B2, AWS S3 or another S3-compatible service):
 
 1. Create a private bucket. Do not allow public writes.
 2. Add a CORS rule: allowed origin is your exact site origin (for example `https://example.com`, no wildcard), allowed method is `PUT` only, allowed header is `Content-Type` only. Without it, the browser cannot upload, even though the server works.
 3. Create an access key that can read, write and delete objects in this bucket only. Set the `S3_*` variables.
+4. Optional: add a lifecycle rule that expires objects under `uploads/` after 1 day. The app already cleans them up (see below); the rule is a second safety net.
+
+### Media library
+
+`/admin/media` lists the finished uploads, newest first (the newest 500).
+
+- **Abandoned uploads**: an upload that never finishes is deleted after 1 hour, with its row and its `uploads/` object. Each new upload runs this cleanup after its response.
+- **Serving**: each finished file is public at `/media/<id>.<ext>`. The bucket stays private: the app streams the file with the type from the database, `X-Content-Type-Options: nosniff`, and `Cache-Control: public, max-age=86400`. Anyone who has the URL can open the file (the id is a random UUID). That is required, because public pages show these files.
+- **Alt text**: set it for each image in the library. An image with no alt text shows a "No alt text" badge. Mark an image "Decorative image" when it adds no information; it then gets an empty alt.
+- **Delete**: editors delete their own uploads; admins delete any upload. A file that a page draft or a live page uses cannot be deleted: the library lists the pages. Remove the file from those pages (and publish) first.
+- **After a delete**: browsers and a CDN can keep the file for up to 1 day. The image optimizer cache keeps resized copies too; on a self-hosted install, `rm -rf .next/cache/images` removes them at once.
 
 ## Commands
 

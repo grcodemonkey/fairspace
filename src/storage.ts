@@ -2,6 +2,12 @@ import { S3Client } from "@aws-sdk/client-s3";
 
 type Storage = { client: S3Client; bucket: string };
 
+/** S3 "no such object" errors. Any other S3 error is transient. */
+export const isNotFound = (e: unknown) =>
+  (e as { name?: string }).name === "NotFound" ||
+  (e as { name?: string }).name === "NoSuchKey" ||
+  (e as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode === 404;
+
 const globalForStorage = globalThis as unknown as { storage?: Storage };
 
 // Lazy like getDb(): `next build` and plain imports work with no S3_* vars; only a real call needs them.
