@@ -1,5 +1,17 @@
 import { sql } from "drizzle-orm";
-import { check, integer, pgEnum, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import type { Data } from "@puckeditor/core";
+import {
+  type AnyPgColumn,
+  check,
+  index,
+  integer,
+  jsonb,
+  pgEnum,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 import type { AdapterAccountType } from "next-auth/adapters";
 
 // What a user may do. New users are editors; the first admin comes from ADMIN_EMAIL.
@@ -59,4 +71,43 @@ export const verificationTokens = pgTable(
     expires: timestamp("expires", { mode: "date" }).notNull(),
   },
   (verificationToken) => [primaryKey({ columns: [verificationToken.identifier, verificationToken.token] })],
+);
+
+// A CMS page. The editor saves only to `draft`, so a save never changes the live page.
+export const pages = pgTable(
+  "pages",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    slug: text("slug").notNull().unique(),
+    title: text("title").notNull(),
+    draft: jsonb("draft").$type<Data>().notNull(),
+    // The live version. Publishing (#12) sets it; null means the page is not live.
+    publishedRevisionId: text("publishedRevisionId").references((): AnyPgColumn => pageRevisions.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("createdAt", { mode: "date", withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { mode: "date", withTimezone: true }).notNull().defaultNow(),
+    updatedBy: text("updatedBy").references(() => users.id, { onDelete: "set null" }),
+  },
+  (page) => [check("pages_slug_format", sql`${page.slug} ~ '^[a-z0-9]+(-[a-z0-9]+)*$'`)],
+);
+
+// Published snapshots of a page's Puck data. #12 writes them.
+export const pageRevisions = pgTable(
+  "page_revisions",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    pageId: text("pageId")
+      .notNull()
+      .references((): AnyPgColumn => pages.id, { onDelete: "cascade" }),
+    data: jsonb("data").$type<Data>().notNull(),
+    createdAt: timestamp("createdAt", { mode: "date", withTimezone: true }).notNull().defaultNow(),
+    createdBy: text("createdBy").references(() => users.id, { onDelete: "set null" }),
+  },
+  // For a page's revision list and for the cascade on page delete.
+  (revision) => [index("page_revisions_page_id_idx").on(revision.pageId)],
 );

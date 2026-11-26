@@ -22,6 +22,13 @@
       "when": 1795727464410,
       "tag": "0002_gifted_argent",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795729902495,
+      "tag": "0003_pages",
+      "breakpoints": true
     }
   ]
 }
