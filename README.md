@@ -53,6 +53,8 @@ In a guarded page, call the guard first, inside the same async `<Suspense>` chil
 
 Admins and editors create pages at `/admin/pages` and edit them in the Puck editor. "Save draft" saves only the draft; it does not change the live page. Publishing comes in a later release.
 
+A published page shows at `/<slug>`. The page with slug `home` shows at `/`, and `/home` redirects to `/`. Public pages need no sign-in and show only the published revision, never the draft. Until a `home` page is published, `/` shows the welcome text.
+
 ## Media storage
 
 Signed-in users upload images and PDFs at `/admin/media`. The browser sends the file straight to an S3-compatible bucket with a presigned PUT URL. The URL is valid for 5 minutes and is signed for one key, one Content-Type and one Content-Length. After the upload, the server reads the object's size and first bytes. If they do not match the declared type, the server deletes the object.
