@@ -1,14 +1,20 @@
-import { type Config, type Data, walkTree } from "@puckeditor/core";
+import type { Config, Data, Field, Fields } from "@puckeditor/core";
 import { pageConfig } from "./config";
+import { UNSAFE_HREF_HINT, isSafeHref } from "./safe-href";
+import { sanitizeRichText } from "./sanitize";
 
 export const MAX_PAGE_DATA_BYTES = 512 * 1024;
+
+/** A save error the editor can act on. `saveDraft` shows its message; other errors show a general one. */
+export class PageDataError extends Error {}
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 /**
  * The trust boundary for Puck data: a client can send any JSON to a server action.
- * Throws when the data is not a page that `config` can render.
+ * Throws when the data is not a page that `config` can render. Checks every prop against its field,
+ * deletes props that have no field, and cleans rich text HTML. Mutates `input` in place.
  */
 export function parsePageData(input: unknown, config: Config = pageConfig): Data {
   if (!isPlainObject(input)) throw new Error("Page data must be an object");
@@ -32,14 +38,67 @@ export function parsePageData(input: unknown, config: Config = pageConfig): Data
       if (!isPlainObject(item.props) || typeof item.props.id !== "string") {
         throw new Error("A component needs a string props.id");
       }
+      const component = config.components[item.type];
+      checkProps(item.props, component.fields ?? {}, component.label ?? item.type, true);
     }
   };
-  // Check the top level before the walk: the walk reads `item.type` and `item.props` without checks.
+
+  const checkProps = (props: Record<string, unknown>, fields: Fields, name: string, keepId: boolean) => {
+    for (const key of Object.keys(props)) {
+      if (!(keepId && key === "id") && !Object.hasOwn(fields, key)) delete props[key];
+    }
+    for (const [key, field] of Object.entries(fields)) {
+      if (Object.hasOwn(props, key)) props[key] = checkValue(props[key], field, name);
+    }
+  };
+
+  const checkValue = (value: unknown, field: Field, name: string): unknown => {
+    const label = `${name} ${field.label ?? "field"}`;
+    switch (field.type) {
+      case "text":
+      case "textarea":
+        if (typeof value !== "string") throw new PageDataError(`${label} must be text.`);
+        if (field.metadata?.href && value !== "" && !isSafeHref(value)) {
+          throw new PageDataError(`A ${name} link ${UNSAFE_HREF_HINT}.`);
+        }
+        return value;
+      case "select":
+      case "radio":
+        if (!field.options.some((option) => option.value === value)) {
+          throw new PageDataError(`${label} has a value that is not in its list.`);
+        }
+        return value;
+      case "number":
+        if (typeof value !== "number" || !Number.isFinite(value)) throw new PageDataError(`${label} must be a number.`);
+        return value;
+      case "richtext":
+        if (typeof value !== "string") throw new PageDataError(`${label} must be text.`);
+        return sanitizeRichText(value);
+      case "slot":
+        checkItems(value);
+        return value;
+      case "array":
+        if (!Array.isArray(value)) throw new Error("An array field must be an array");
+        if (field.max !== undefined && value.length > field.max) {
+          throw new PageDataError(`${label} can have at most ${field.max} items.`);
+        }
+        for (const item of value) {
+          if (!isPlainObject(item)) throw new Error("An array item must be an object");
+          checkProps(item, field.arrayFields as Fields, name, false);
+        }
+        return value;
+      case "object":
+        if (!isPlainObject(value)) throw new Error("An object field must be an object");
+        checkProps(value, field.objectFields as Fields, name, false);
+        return value;
+      default:
+        // On purpose: a new field type (media picker, embed) must add its own check here.
+        throw new Error(`Unsupported field type: ${field.type}`);
+    }
+  };
+
+  checkProps(input.root.props, config.root?.fields ?? {}, "Page", false);
   checkItems(input.content);
-  // walkTree calls back for each content array, slots included, from the deepest up.
-  walkTree(input as Data, config, (content) => {
-    checkItems(content);
-  });
   // Only the keys the app reads: anything else a client adds is not stored.
   return { root: input.root, content: input.content } as Data;
 }
