@@ -38,9 +38,13 @@ export const Button: ComponentConfig<ButtonProps> = {
     },
   },
   defaultProps: { label: "Learn more", href: "/", variant: "primary" },
-  render: ({ label, href, variant }) => (
-    <div className="my-4">
-      <ButtonLink label={label} href={href} variant={variant} />
-    </div>
-  ),
+  // No link, no button: a dead button only confuses visitors.
+  render: ({ label, href, variant }) =>
+    href ? (
+      <div className="block-container my-4">
+        <ButtonLink label={label} href={href} variant={variant} />
+      </div>
+    ) : (
+      <></>
+    ),
 };

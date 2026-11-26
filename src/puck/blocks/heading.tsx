@@ -24,6 +24,6 @@ export const Heading: ComponentConfig<HeadingProps> = {
   defaultProps: { text: "Heading", level: "h2", align: "left" },
   render: ({ text, level, align }) => {
     const Tag = LEVELS.includes(level) ? level : "h2";
-    return <Tag className={`my-4 font-bold ${SIZE[Tag]} ${align === "center" ? "text-center" : ""}`}>{text}</Tag>;
+    return <Tag className={`block-container my-4 font-bold ${SIZE[Tag]} ${align === "center" ? "text-center" : ""}`}>{text}</Tag>;
   },
 };

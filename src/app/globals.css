@@ -12,11 +12,15 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* Block colors. #18 (Brand settings) overrides these. The default pair passes WCAG AA (7:1). */
+/* Block colors. #18 (Brand settings) overrides these. Light: #1d4ed8 and white, 6.7:1 both ways (WCAG AA). */
 @theme {
   --color-primary: #1d4ed8;
   --color-on-primary: #ffffff;
 }
+
+/* Readable width for blocks; Hero stays full-bleed. A block inside Columns takes the column width. */
+.block-container { margin-inline: auto; max-width: 48rem; padding-inline: 1.5rem; }
+.block-container .block-container { max-width: none; padding-inline: 0; }
 
 /* Tailwind preflight removes element styles; rich text needs them back. */
 .rich-text-content h2 { font-size: 1.5rem; font-weight: 700; margin: 1.5rem 0 0.5rem; }
@@ -32,6 +36,9 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    /* #60a5fa on #0a0a0a is 7.8:1, and #0a0a0a text on it is 7.8:1 (WCAG AA). */
+    --color-primary: #60a5fa;
+    --color-on-primary: #0a0a0a;
   }
 }
 

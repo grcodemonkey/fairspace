@@ -2,7 +2,7 @@
 import type { Config } from "@puckeditor/core";
 import { expect, test } from "vitest";
 import { allBlocksFixture } from "./all-blocks.fixture";
-import { MAX_PAGE_DATA_BYTES, PageDataError, parsePageData } from "./validate";
+import { MAX_PAGE_DATA_BYTES, MAX_SLOT_DEPTH, PageDataError, parsePageData } from "./validate";
 
 // One dummy block with a slot, so the test proves the walk reaches into slots before #13 adds real blocks.
 const testConfig: Config = {
@@ -125,7 +125,7 @@ test("rejects-too-many-columns", () => {
   expect(() => parsePageData(page([columns(5)]))).toThrow(/at most 4/);
   expect(() => parsePageData(page([block("Columns", { columns: "x" })]))).toThrow();
   expect(() =>
-    parsePageData(page([block("Columns", { columns: [{ content: [{ type: "Script", props: { id: "x" } }] }] })])),
+    parsePageData(page([block("Columns", { columns: [{ content: [{ type: "Script", props: { id: "x" } }] }, { content: [] }] })])),
   ).toThrow(/Unknown/);
 });
 
@@ -182,6 +182,43 @@ test("rejects-unsupported-field-type", () => {
   expect(() => parsePageData(page([{ type: "Widget", props: { id: "w", x: 1 } }]), custom)).toThrow(
     /Unsupported field type/,
   );
+});
+
+test("slot-disallow-enforced", () => {
+  expect(() => parsePageData(page([inColumns(block("Columns", { columns: [{ content: [] }, { content: [] }] }))]))).toThrow(
+    /Columns block is not allowed/,
+  );
+  expect(() => parsePageData(page([inColumns(hero("/"))]))).toThrow(/Hero block is not allowed/);
+  // `allow` too.
+  const allowConfig: Config = {
+    components: {
+      Box: { fields: { items: { type: "slot", allow: ["Leaf"] } }, render: () => <div /> },
+      Leaf: { fields: {}, render: () => <div /> },
+    },
+  };
+  const box = (items: unknown[]) => ({ type: "Box", props: { id: `box-${nextId++}`, items } });
+  expect(() => parsePageData(page([box([{ type: "Leaf", props: { id: "l" } }])]), allowConfig)).not.toThrow();
+  expect(() => parsePageData(page([box([box([])])]), allowConfig)).toThrow(/not allowed/);
+});
+
+test("rejects-deep-nesting", () => {
+  const nest = (levels: number): ReturnType<typeof section> =>
+    levels === 0 ? section(`s${nextId++}`) : section(`s${nextId++}`, [nest(levels - 1)]);
+  expect(() => parsePageData(page([nest(MAX_SLOT_DEPTH)]), testConfig)).not.toThrow();
+  expect(() => parsePageData(page([nest(MAX_SLOT_DEPTH + 1)]), testConfig)).toThrow(/nested at most/);
+});
+
+test("rejects-too-few-columns", () => {
+  expect(() => parsePageData(page([block("Columns", { columns: [{ content: [] }] })]))).toThrow(/at least 2/);
+});
+
+test("rebuilds-items-and-root", () => {
+  const item = { ...button("/"), readOnly: true, extra: "<script>" };
+  const data = parsePageData({ root: { props: { title: "x" }, extra: 1 }, content: [inColumns({ ...button("/"), x: 1 }), item] });
+  expect(Object.keys(data.root)).toEqual(["props"]);
+  expect(Object.keys(data.content[1])).toEqual(["type", "props"]);
+  expect(Object.keys(firstColumn(data)[0])).toEqual(["type", "props"]);
+  expect(() => parsePageData(page([{ type: "Button", props: { id: "x".repeat(101) } }]))).toThrow(/props.id/);
 });
 
 test("root-title-must-be-string", () => {

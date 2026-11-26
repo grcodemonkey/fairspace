@@ -18,7 +18,7 @@ export const Columns: ComponentConfig<ColumnsProps> = {
   defaultProps: { columns: [{ content: [] }, { content: [] }] },
   // Stacks on mobile; from md up, one equal-width column per item, so no class map per count.
   render: ({ columns }) => (
-    <div className="my-6 grid gap-6 md:auto-cols-fr md:grid-flow-col">
+    <div className="block-container my-6 grid gap-6 md:auto-cols-fr md:grid-flow-col">
       {columns.map(({ content: Content }, i) => (
         <Content key={i} className="min-h-16" />
       ))}

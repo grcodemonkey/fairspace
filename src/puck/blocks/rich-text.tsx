@@ -21,5 +21,5 @@ export const RichText: ComponentConfig<RichTextProps> = {
   },
   defaultProps: { body: "<p>Write something here.</p>" },
   // Puck gives `body` as a node that renders the stored HTML.
-  render: ({ body }) => <div className="rich-text-content my-4">{body}</div>,
+  render: ({ body }) => <div className="rich-text-content block-container my-4">{body}</div>,
 };

@@ -26,6 +26,11 @@ test("render-matches", async () => {
   expect(html).not.toMatch(/<script|javascript:/i);
 });
 
+test("button-without-link-renders-nothing", async () => {
+  const data = { root: { props: {} }, content: [{ type: "Button", props: { id: "b", label: "Dead", href: "", variant: "primary" } }] };
+  expect(await renderHtml(data)).not.toContain("Dead");
+});
+
 test("render-after-save-has-no-script", async () => {
   const data = allBlocksFixture();
   data.content[2].props.body = '<p>x</p><script>alert(1)</script><img src=x onerror="alert(1)">';

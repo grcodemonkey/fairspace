@@ -36,18 +36,19 @@ function SaveDraftButton({ id }: { id: string }) {
     });
 
   return (
-    <div className="flex items-center gap-3">
-      <span role="status" aria-live="polite">
-        {status}
-      </span>
+    // The status sits on its own line under the button, so a long error never squeezes the button.
+    <div className="flex flex-col items-end gap-1">
       <button
         type="button"
         onClick={save}
         disabled={pending}
-        className="border rounded px-3 py-1 font-semibold bg-white"
+        className="border rounded px-3 py-1 font-semibold bg-white whitespace-nowrap"
       >
         {pending ? "Saving…" : "Save draft"}
       </button>
+      <span role="status" aria-live="polite" className="max-w-md text-right text-sm empty:hidden">
+        {status}
+      </span>
     </div>
   );
 }

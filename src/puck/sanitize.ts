@@ -14,7 +14,6 @@ export function sanitizeRichText(html: string): string {
     allowedAttributes: { a: ["href"], p: ["style"], h2: ["style"], h3: ["style"], h4: ["style"] },
     allowedStyles: { p: ALIGN, h2: ALIGN, h3: ALIGN, h4: ALIGN },
     allowedSchemes: ["http", "https", "mailto", "tel"],
-    allowedSchemesAppliedToAttributes: ["href"],
     allowProtocolRelative: false,
     // The same link rule as the link fields. The parser has decoded entities, so "java&#9;script:" arrives as "java\tscript:".
     transformTags: {

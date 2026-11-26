@@ -1,9 +1,11 @@
-import type { Config, Data, Field, Fields } from "@puckeditor/core";
+import type { Config, Data, Field, Fields, SlotField } from "@puckeditor/core";
 import { pageConfig } from "./config";
 import { UNSAFE_HREF_HINT, isSafeHref } from "./safe-href";
 import { sanitizeRichText } from "./sanitize";
 
 export const MAX_PAGE_DATA_BYTES = 512 * 1024;
+export const MAX_SLOT_DEPTH = 5;
+const MAX_ID_LENGTH = 100;
 
 /** A save error the editor can act on. `saveDraft` shows its message; other errors show a general one. */
 export class PageDataError extends Error {}
@@ -29,30 +31,44 @@ export function parsePageData(input: unknown, config: Config = pageConfig): Data
     throw new Error("Page data must not use zones");
   }
 
-  const checkItems = (items: unknown) => {
+  // `slot` is the field that holds these items (none at the top level); `depth` counts slot levels.
+  const checkItems = (items: unknown, depth: number, slot?: SlotField, slotName?: string) => {
     if (!Array.isArray(items)) throw new Error("A slot must be an array");
-    for (const item of items) {
+    if (items.length && depth > MAX_SLOT_DEPTH) throw new PageDataError(`Blocks can be nested at most ${MAX_SLOT_DEPTH} levels deep.`);
+    items.forEach((item, index) => {
       if (!isPlainObject(item) || typeof item.type !== "string" || !Object.hasOwn(config.components, item.type)) {
         throw new Error("Unknown component type");
       }
-      if (!isPlainObject(item.props) || typeof item.props.id !== "string") {
+      if (!isPlainObject(item.props) || typeof item.props.id !== "string" || item.props.id.length > MAX_ID_LENGTH) {
         throw new Error("A component needs a string props.id");
       }
       const component = config.components[item.type];
-      checkProps(item.props, component.fields ?? {}, component.label ?? item.type, true);
-    }
+      const name = component.label ?? item.type;
+      if (slot && ((slot.allow && !slot.allow.includes(item.type)) || slot.disallow?.includes(item.type))) {
+        throw new PageDataError(`A ${name} block is not allowed inside ${slotName}.`);
+      }
+      checkProps(item.props, component.fields ?? {}, name, true, depth);
+      // Only the keys the app reads.
+      items[index] = { type: item.type, props: item.props };
+    });
   };
 
-  const checkProps = (props: Record<string, unknown>, fields: Fields, name: string, keepId: boolean) => {
+  const checkProps = (
+    props: Record<string, unknown>,
+    fields: Fields,
+    name: string,
+    keepId: boolean,
+    depth: number,
+  ) => {
     for (const key of Object.keys(props)) {
       if (!(keepId && key === "id") && !Object.hasOwn(fields, key)) delete props[key];
     }
     for (const [key, field] of Object.entries(fields)) {
-      if (Object.hasOwn(props, key)) props[key] = checkValue(props[key], field, name);
+      if (Object.hasOwn(props, key)) props[key] = checkValue(props[key], field, name, depth);
     }
   };
 
-  const checkValue = (value: unknown, field: Field, name: string): unknown => {
+  const checkValue = (value: unknown, field: Field, name: string, depth: number): unknown => {
     const label = `${name} ${field.label ?? "field"}`;
     switch (field.type) {
       case "text":
@@ -75,21 +91,24 @@ export function parsePageData(input: unknown, config: Config = pageConfig): Data
         if (typeof value !== "string") throw new PageDataError(`${label} must be text.`);
         return sanitizeRichText(value);
       case "slot":
-        checkItems(value);
+        checkItems(value, depth + 1, field, `a ${name}`);
         return value;
       case "array":
         if (!Array.isArray(value)) throw new Error("An array field must be an array");
         if (field.max !== undefined && value.length > field.max) {
           throw new PageDataError(`${label} can have at most ${field.max} items.`);
         }
+        if (field.min !== undefined && value.length < field.min) {
+          throw new PageDataError(`${label} needs at least ${field.min} items.`);
+        }
         for (const item of value) {
           if (!isPlainObject(item)) throw new Error("An array item must be an object");
-          checkProps(item, field.arrayFields as Fields, name, false);
+          checkProps(item, field.arrayFields as Fields, name, false, depth);
         }
         return value;
       case "object":
         if (!isPlainObject(value)) throw new Error("An object field must be an object");
-        checkProps(value, field.objectFields as Fields, name, false);
+        checkProps(value, field.objectFields as Fields, name, false, depth);
         return value;
       default:
         // On purpose: a new field type (media picker, embed) must add its own check here.
@@ -97,8 +116,8 @@ export function parsePageData(input: unknown, config: Config = pageConfig): Data
     }
   };
 
-  checkProps(input.root.props, config.root?.fields ?? {}, "Page", false);
-  checkItems(input.content);
+  checkProps(input.root.props, config.root?.fields ?? {}, "Page", false, 0);
+  checkItems(input.content, 0);
   // Only the keys the app reads: anything else a client adds is not stored.
-  return { root: input.root, content: input.content } as Data;
+  return { root: { props: input.root.props }, content: input.content } as Data;
 }
