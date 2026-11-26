@@ -40,5 +40,6 @@ export function parsePageData(input: unknown, config: Config = pageConfig): Data
   walkTree(input as Data, config, (content) => {
     checkItems(content);
   });
-  return input as Data;
+  // Only the keys the app reads: anything else a client adds is not stored.
+  return { root: input.root, content: input.content } as Data;
 }

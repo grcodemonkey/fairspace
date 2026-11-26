@@ -88,6 +88,23 @@ test("save-draft-editor-saves", async () => {
   expect(count).toBe(0);
 });
 
+test("save-draft-updates-page-title", async () => {
+  signedInAsEditor();
+  const page = await insertPage("title");
+  await saveDraft(page.id, { root: { props: { title: "  New title " } }, content: [] });
+  expect((await reload(page.id)).title).toBe("New title");
+  // An empty root title keeps the old one.
+  await saveDraft(page.id, { root: { props: { title: " " } }, content: [] });
+  expect((await reload(page.id)).title).toBe("New title");
+});
+
+test("save-draft-non-string-id-rejected", async () => {
+  signedInAsEditor();
+  await expect(saveDraft({ id: 1 } as unknown as string, newDraft)).resolves.toEqual({
+    error: "The page id is not valid.",
+  });
+});
+
 test("save-draft-missing-page-not-found", async () => {
   signedInAsEditor();
   await expect(saveDraft(crypto.randomUUID(), newDraft)).rejects.toMatchObject({ digest: NOT_FOUND });

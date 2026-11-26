@@ -15,7 +15,11 @@ const section = (id: string, items: unknown[] = []) => ({ type: "Section", props
 
 test("valid-empty-page-passes", () => {
   const data = page();
-  expect(parsePageData(data)).toBe(data);
+  expect(parsePageData(data)).toEqual(data);
+});
+
+test("drops-extra-top-level-keys", () => {
+  expect(parsePageData({ ...page(), zones: {}, extra: "x".repeat(10) })).toEqual(page());
 });
 
 test("valid-nested-page-passes", () => {

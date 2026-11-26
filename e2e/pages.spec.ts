@@ -1,24 +1,20 @@
 import { expect, test } from "@playwright/test";
 import postgres from "postgres";
+import { signInAs } from "./helpers";
 
 const sql = postgres(process.env.DATABASE_URL!, { max: 1 });
-const run = crypto.randomUUID().slice(0, 8);
-const userId = `pages-editor-${run}`;
-const slug = `e2e-page-${run}`;
+const slug = `e2e-page-${crypto.randomUUID().slice(0, 8)}`;
+let userId: string | undefined;
 
 test.afterAll(async () => {
   await sql`delete from pages where slug = ${slug}`;
-  await sql`delete from users where id = ${userId}`; // the cascade removes the session
+  if (userId) await sql`delete from users where id = ${userId}`; // the cascade removes the session
   await sql.end();
 });
 
 // The guard runs inside Suspense after the stream starts, so the status stays 200: assert the text.
 test("editor-creates-and-saves-draft", async ({ page, context, baseURL }) => {
-  // Skips Mailpit, as in roles.spec.ts: a users row plus a sessions row is a signed-in editor.
-  const token = crypto.randomUUID();
-  await sql`insert into users (id, email, role) values (${userId}, ${`${userId}@example.com`}, 'editor')`;
-  await sql`insert into sessions ("sessionToken", "userId", expires) values (${token}, ${userId}, now() + interval '1 day')`;
-  await context.addCookies([{ name: "authjs.session-token", value: token, url: baseURL! }]);
+  ({ id: userId } = await signInAs(sql, context, baseURL!, "editor"));
 
   await page.goto("/admin");
   await page.getByRole("link", { name: "Pages" }).click();

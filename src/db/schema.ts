@@ -3,6 +3,7 @@ import type { Data } from "@puckeditor/core";
 import {
   type AnyPgColumn,
   check,
+  index,
   integer,
   jsonb,
   pgEnum,
@@ -94,14 +95,19 @@ export const pages = pgTable(
 );
 
 // Published snapshots of a page's Puck data. #12 writes them.
-export const pageRevisions = pgTable("page_revisions", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => crypto.randomUUID()),
-  pageId: text("pageId")
-    .notNull()
-    .references((): AnyPgColumn => pages.id, { onDelete: "cascade" }),
-  data: jsonb("data").$type<Data>().notNull(),
-  createdAt: timestamp("createdAt", { mode: "date", withTimezone: true }).notNull().defaultNow(),
-  createdBy: text("createdBy").references(() => users.id, { onDelete: "set null" }),
-});
+export const pageRevisions = pgTable(
+  "page_revisions",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    pageId: text("pageId")
+      .notNull()
+      .references((): AnyPgColumn => pages.id, { onDelete: "cascade" }),
+    data: jsonb("data").$type<Data>().notNull(),
+    createdAt: timestamp("createdAt", { mode: "date", withTimezone: true }).notNull().defaultNow(),
+    createdBy: text("createdBy").references(() => users.id, { onDelete: "set null" }),
+  },
+  // For a page's revision list and for the cascade on page delete.
+  (revision) => [index("page_revisions_page_id_idx").on(revision.pageId)],
+);

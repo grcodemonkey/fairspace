@@ -1,5 +1,5 @@
 {
-  "id": "749004f3-df6c-4ac3-a2e6-93e4288b3a26",
+  "id": "eb1143aa-e2f0-4df8-b5db-aede1e74a842",
   "prevId": "1e222f21-b693-4468-aced-09af4724dada",
   "version": "7",
   "dialect": "postgresql",
@@ -141,7 +141,23 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "page_revisions_page_id_idx": {
+          "name": "page_revisions_page_id_idx",
+          "columns": [
+            {
+              "expression": "pageId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "page_revisions_pageId_pages_id_fk": {
           "name": "page_revisions_pageId_pages_id_fk",

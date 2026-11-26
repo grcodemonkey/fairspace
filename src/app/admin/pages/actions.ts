@@ -41,16 +41,19 @@ export async function createPage(_prev: CreatePageState, formData: FormData): Pr
 /** Saves the draft only. It never touches page_revisions or publishedRevisionId, so the live page stays the same. */
 export async function saveDraft(id: string, data: unknown): Promise<{ ok: true } | { error: string }> {
   const user = await requireUser();
+  if (typeof id !== "string") return { error: "The page id is not valid." };
   let draft;
   try {
     draft = parsePageData(data);
   } catch {
     return { error: "The page data is not valid." };
   }
+  // The root Title field is the source of the page title, so the list never shows a stale one.
+  const title = typeof draft.root.props?.title === "string" ? draft.root.props.title.trim() : "";
   const rows = await getDb()
     .update(pages)
-    .set({ draft, updatedAt: new Date(), updatedBy: user.id ?? null })
-    .where(eq(pages.id, String(id)))
+    .set({ draft, ...(title && { title }), updatedAt: new Date(), updatedBy: user.id ?? null })
+    .where(eq(pages.id, id))
     .returning({ id: pages.id });
   if (rows.length === 0) notFound();
   return { ok: true };

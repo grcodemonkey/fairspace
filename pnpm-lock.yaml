@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@puckeditor/cli': 0.25.0-canary.8b6e0f33
+
 importers:
 
   .:
