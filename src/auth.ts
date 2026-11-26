@@ -1,10 +1,21 @@
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { eq, sql } from "drizzle-orm";
-import NextAuth from "next-auth";
+import NextAuth, { type DefaultSession } from "next-auth";
 import { after } from "next/server";
 import Nodemailer from "next-auth/providers/nodemailer";
 import { getDb } from "@/db";
-import { accounts, sessions, users, verificationTokens } from "@/db/schema";
+import { accounts, sessions, userRole, users, verificationTokens } from "@/db/schema";
+
+export type Role = (typeof userRole.enumValues)[number];
+
+declare module "next-auth" {
+  interface User {
+    role: Role;
+  }
+  interface Session {
+    user: { role: Role } & DefaultSession["user"];
+  }
+}
 
 // Exactly where Auth.js lands a known email (its verify-request redirect adds this query).
 // Unknown emails must land on the same URL, or the URL shows which emails have an account.
@@ -80,6 +91,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
         if (user.email) await ensureFirstAdmin(user.email);
         if (!user.email || !(await isKnownEmail(user.email))) return CHECK_EMAIL_URL;
         return true;
+      },
+      // Database sessions: the adapter joins the whole users row on each request, so a role change applies at once.
+      session({ session, user }) {
+        session.user.role = user.role;
+        return session;
       },
     },
   };
