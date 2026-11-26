@@ -16,6 +16,22 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      TEST_DATABASE_URL: postgres://fairspace:fairspace@localhost:5433/fairspace_test
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: fairspace
+          POSTGRES_PASSWORD: fairspace
+          # Service containers cannot run db/init, so create the test database directly.
+          POSTGRES_DB: fairspace_test
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U fairspace"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
