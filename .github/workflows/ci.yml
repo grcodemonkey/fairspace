@@ -36,6 +36,19 @@ jobs:
       mailpit:
         image: axllent/mailpit
         ports: ["1025:1025", "8025:8025"]
+      # S3-compatible storage for media uploads. The image runs `weed mini`; the test setup creates the bucket.
+      storage:
+        image: chrislusf/seaweedfs:4.55
+        env:
+          AWS_ACCESS_KEY_ID: fairspace
+          AWS_SECRET_ACCESS_KEY: fairspace
+          S3_BUCKET: fairspace-test
+        ports: ["8333:8333"]
+        options: >-
+          --health-cmd "wget -q -O /dev/null http://127.0.0.1:8333/healthz"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6

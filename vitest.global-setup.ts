@@ -1,6 +1,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
+import { setupStorage } from "./scripts/storage-setup";
 
 export default async function setup() {
   const url = process.env.DATABASE_URL;
@@ -13,4 +14,5 @@ export default async function setup() {
   } finally {
     await client.end();
   }
+  await setupStorage(); // the test bucket and its CORS
 }

@@ -3,6 +3,15 @@ import { defineConfig, devices } from "@playwright/test";
 // Same test database as vitest.config.mts. Set on process.env so globalSetup and the specs see it.
 process.env.DATABASE_URL =
   process.env.TEST_DATABASE_URL ?? "postgres://fairspace:fairspace@localhost:5433/fairspace_test";
+// Test bucket on local SeaweedFS (pnpm db:up, or the CI service). scripts/storage-setup.ts creates it.
+Object.assign(process.env, {
+  S3_ENDPOINT: "http://localhost:8333",
+  S3_REGION: "auto",
+  S3_BUCKET: "fairspace-test",
+  S3_ACCESS_KEY_ID: "fairspace",
+  S3_SECRET_ACCESS_KEY: "fairspace",
+  S3_FORCE_PATH_STYLE: "true",
+});
 
 export default defineConfig({
   testDir: "e2e",
@@ -27,6 +36,12 @@ export default defineConfig({
       EMAIL_SERVER: "smtp://localhost:1025",
       EMAIL_FROM: "Fairspace <noreply@localhost>",
       ADMIN_EMAIL: "admin-e2e@example.com",
+      S3_ENDPOINT: process.env.S3_ENDPOINT!,
+      S3_REGION: process.env.S3_REGION!,
+      S3_BUCKET: process.env.S3_BUCKET!,
+      S3_ACCESS_KEY_ID: process.env.S3_ACCESS_KEY_ID!,
+      S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY!,
+      S3_FORCE_PATH_STYLE: process.env.S3_FORCE_PATH_STYLE!,
     },
   },
 });
