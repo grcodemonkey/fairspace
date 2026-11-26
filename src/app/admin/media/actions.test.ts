@@ -1,6 +1,6 @@
 // @vitest-environment node
 // Integration: real test database and the SeaweedFS test bucket (pnpm db:up).
-import { GetObjectCommand, HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import { getDb } from "@/db";
@@ -185,9 +185,12 @@ test("sweeper-removes-abandoned", async () => {
   // A stray staging object with no pending row (a PUT after finish) goes when it is older than the cutoff.
   const { client, bucket } = getStorage();
   const stray = `uploads/${crypto.randomUUID()}`;
-  await client.send(new PutObjectCommand({ Bucket: bucket, Key: stray, Body: PNG }));
+  const foreign = `uploads/${crypto.randomUUID()}/not-ours.txt`; // not a key createUpload makes
+  for (const Key of [stray, foreign]) await client.send(new PutObjectCommand({ Bucket: bucket, Key, Body: PNG }));
   await sweepPendingUploads(new Date(Date.now() + 1000));
   expect(await objectExists(stray)).toBe(false);
+  expect(await objectExists(foreign)).toBe(true);
+  await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: foreign }));
 });
 
 test("alt-saved-and-capped", async () => {
@@ -224,7 +227,7 @@ test("editor-deletes-own-only", async () => {
   expect(await rowOf(bobs)).toBeUndefined();
 });
 
-test.each(["draft", "published"] as const)("delete-refused-when-used: %s", async (where) => {
+test.each(["draft", "published", "old-revision"] as const)("delete-refused-when-used: %s", async (where) => {
   const id = await uploaded();
   const key = (await rowOf(id)).key;
   const using = { content: [{ type: "Image", props: { id: "b1", media: id } }], root: { props: {} } };
@@ -235,9 +238,12 @@ test.each(["draft", "published"] as const)("delete-refused-when-used: %s", async
     .values({ slug: `t-${crypto.randomUUID()}`, title, draft: where === "draft" ? using : empty })
     .returning();
   pageIds.push(page.id);
-  if (where === "published") {
+  if (where !== "draft") {
     const [revision] = await getDb().insert(pageRevisions).values({ pageId: page.id, data: using }).returning();
-    await getDb().update(pages).set({ publishedRevisionId: revision.id }).where(eq(pages.id, page.id));
+    // old-revision: a past version that is not live; restoring it (#12) needs the file.
+    if (where === "published") {
+      await getDb().update(pages).set({ publishedRevisionId: revision.id }).where(eq(pages.id, page.id));
+    }
   }
   expect(await deleteMediaAction({}, form({ id }))).toEqual({
     error: `Used on: ${title}. Remove it from these pages first.`,

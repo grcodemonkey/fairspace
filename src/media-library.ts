@@ -3,10 +3,12 @@ import { DeleteObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { and, desc, eq, isNotNull, isNull, like, lt, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { media } from "@/db/schema";
-import { mediaUrl } from "@/media";
+import { mediaUrl, UUID } from "@/media";
 import { getStorage } from "@/storage";
 
 const HOUR = 60 * 60 * 1000;
+// Only keys createUpload makes: the sweeper never deletes anything else in the bucket.
+const STAGING_KEY = new RegExp(`^uploads/${UUID}$`);
 
 /** Finished uploads, newest first. */
 export async function listMedia({ imagesOnly = false } = {}) {
@@ -38,23 +40,23 @@ export async function getServableMedia(id: string) {
 }
 
 /**
- * Pages whose draft or published revision contains the media id. UUIDs are unique, so a text search of the
- * Puck JSON finds a reference whatever the block shape. Older, unpublished revisions are not checked.
+ * Pages whose draft or any revision contains the media id: a restored revision (#12) must not lose its files.
+ * UUIDs are unique, so a text search of the Puck JSON finds a reference whatever the block shape.
  * position(), not like: no wildcard escaping.
  */
 export async function findMediaUsage(id: string): Promise<{ id: string; title: string }[]> {
-  // shortcut: full scan of draft and published jsonb; fine for a small site, add a media-usage table if pages reach the thousands.
+  // shortcut: full scan of draft and revision jsonb; fine for a small site, add a media-usage table if pages reach the thousands.
   const rows = await getDb().execute<{ id: string; title: string }>(sql`
     select p.id, p.title from pages p
-    left join page_revisions r on r.id = p."publishedRevisionId" and r."pageId" = p.id
-    where position(${id} in p.draft::text) > 0 or position(${id} in r.data::text) > 0
+    where position(${id} in p.draft::text) > 0
+       or exists (select 1 from page_revisions r where r."pageId" = p.id and position(${id} in r.data::text) > 0)
     order by p.title`);
   return [...rows];
 }
 
 /**
- * Deletes abandoned uploads: pending rows older than `cutoff` with their staging objects, and any `uploads/`
- * object older than `cutoff` (also the stray one a PUT after finish leaves). 1 hour is safe: the PUT URL lives
+ * Deletes abandoned uploads: pending rows older than `cutoff` with their staging objects, and any
+ * `uploads/<uuid>` object older than `cutoff` (also the stray one a PUT after finish leaves). Other keys are never touched. 1 hour is safe: the PUT URL lives
  * 5 minutes. Object delete errors are ignored: the next sweep retries the listing.
  */
 export async function sweepPendingUploads(cutoff = new Date(Date.now() - HOUR)) {
@@ -65,9 +67,15 @@ export async function sweepPendingUploads(cutoff = new Date(Date.now() - HOUR)) 
     .where(and(isNull(media.uploadedAt), lt(media.createdAt, cutoff)))
     .returning({ key: media.key });
   await Promise.all(rows.map((row) => del(row.key)));
-  // One page (up to 1000 keys) per sweep; the next upload sweeps the rest.
-  const list = await client.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: "uploads/" }));
-  await Promise.all(
-    (list.Contents ?? []).filter((o) => o.Key && o.LastModified && o.LastModified < cutoff).map((o) => del(o.Key!)),
-  );
+  // shortcut: at most 10 pages (10,000 keys) per sweep; the next upload sweeps the rest.
+  let ContinuationToken: string | undefined;
+  for (let page = 0; page < 10; page++) {
+    const list = await client.send(new ListObjectsV2Command({ Bucket: bucket, Prefix: "uploads/", ContinuationToken }));
+    const stale = (list.Contents ?? []).filter(
+      (o) => o.Key && STAGING_KEY.test(o.Key) && o.LastModified && o.LastModified < cutoff,
+    );
+    await Promise.all(stale.map((o) => del(o.Key!)));
+    ContinuationToken = list.NextContinuationToken;
+    if (!list.IsTruncated || !ContinuationToken) break;
+  }
 }

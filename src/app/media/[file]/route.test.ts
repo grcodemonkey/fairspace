@@ -68,6 +68,7 @@ test("serve-pdf-no-sandbox", async () => {
 test.each([
   ["serve-pending-404", () => `${pending.id}.png`],
   ["serve-wrong-ext-404", () => `${png.id}.pdf`],
+  ["serve-ext-not-allowed-404", () => `${png.id}.html`],
   ["serve-bad-id-404", () => "not-a-uuid.png"],
   ["serve-unknown-id-404", () => `${crypto.randomUUID()}.png`],
   ["serve-upper-case-404", () => `${png.id.toUpperCase()}.png`],

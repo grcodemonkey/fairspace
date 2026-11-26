@@ -1,9 +1,10 @@
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { ALLOWED_TYPES, type AllowedType, isImage } from "@/media";
+import { ALLOWED_TYPES, type AllowedType, isImage, UUID } from "@/media";
 import { getServableMedia } from "@/media-library";
 import { getStorage, isNotFound } from "@/storage";
 
-const FILE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.([a-z]+)$/;
+const FILE = new RegExp(`^(${UUID})\\.([a-z]+)$`);
+const EXTENSIONS: readonly string[] = Object.values(ALLOWED_TYPES);
 
 // RFC 5987 value: encodeURIComponent leaves ' ( ) * as is, and they are not allowed there.
 const rfc5987 = (name: string) =>
@@ -18,7 +19,7 @@ const notFound = () => new Response("Not found", { status: 404 });
  */
 export async function GET(_: Request, { params }: { params: Promise<{ file: string }> }) {
   const match = FILE.exec((await params).file);
-  if (!match) return notFound();
+  if (!match || !EXTENSIONS.includes(match[2])) return notFound(); // no DB query for a bad name
   const row = await getServableMedia(match[1]);
   if (!row || ALLOWED_TYPES[row.contentType as AllowedType] !== match[2]) return notFound();
 
@@ -26,7 +27,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ file: stri
   let body: ReadableStream;
   try {
     const object = await client.send(new GetObjectCommand({ Bucket: bucket, Key: row.key }));
-    body = object.Body!.transformToWebStream();
+    if (!object.Body) return notFound();
+    body = object.Body.transformToWebStream();
   } catch (e) {
     if (isNotFound(e)) return notFound();
     throw e;
