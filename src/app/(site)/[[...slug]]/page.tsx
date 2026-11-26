@@ -1,0 +1,49 @@
+import { Render } from "@puckeditor/core";
+import type { Metadata } from "next";
+import { notFound, permanentRedirect } from "next/navigation";
+import { pageConfig } from "@/puck/config";
+import { getPublishedPage } from "@/puck/published";
+import { SLUG_FORMAT } from "@/puck/slug";
+
+// Each slug renders once as a static prerender, so notFound() gives a real 404 status.
+export const ensureStatic = "navigation";
+
+// ensureStatic needs one param set; `_` fails SLUG_FORMAT, so the build never queries the DB.
+export function generateStaticParams() {
+  return [{ slug: ["_"] }];
+}
+
+// `/` is the page with slug `home`. Anything other than one valid segment is not a page.
+export function resolveSlug(slug: string[] | undefined): string | null {
+  if (!slug) return "home";
+  return slug.length === 1 && SLUG_FORMAT.test(slug[0]) ? slug[0] : null;
+}
+
+type Props = PageProps<"/[[...slug]]">;
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const slug = resolveSlug((await params).slug);
+  const data = slug ? await getPublishedPage(slug) : null;
+  // The published title only: pages.title follows the draft. #16 adds the rest.
+  const title = data?.root.props?.title;
+  return typeof title === "string" && title ? { title } : {};
+}
+
+export default async function PublicPage({ params }: Props) {
+  const segments = (await params).slug;
+  const slug = resolveSlug(segments);
+  if (!slug) notFound();
+  if (segments?.[0] === "home") permanentRedirect("/");
+
+  const data = await getPublishedPage(slug);
+  if (data) return <Render config={pageConfig} data={data} />;
+  if (slug !== "home") notFound();
+
+  // A new install has no published home page yet.
+  return (
+    <div className="p-8">
+      <h1 className="text-3xl font-bold">Fairspace</h1>
+      <p>An open-source site builder for nonprofits.</p>
+    </div>
+  );
+}
