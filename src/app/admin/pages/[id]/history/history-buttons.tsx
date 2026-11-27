@@ -46,15 +46,15 @@ export function UnpublishButton({ id }: { id: string }) {
   );
 }
 
-/** A news post's publish date (UTC day). setPostDate refuses a day after today. */
-export function PostDateForm({ id, date }: { id: string; date: string }) {
+/** A news post's publish date (UTC day). `max` is a hint only: setPostDate refuses a day after today. */
+export function PostDateForm({ id, date, max }: { id: string; date: string; max: string }) {
   const [state, action, pending] = useActionState(setPostDate, {});
   return (
     <form action={action} aria-label="Publish date" className="flex items-end gap-3">
       <input type="hidden" name="id" value={id} />
       <label className="flex flex-col gap-1">
         Publish date (UTC)
-        <input type="date" name="date" defaultValue={date} required className="border rounded px-3 py-2" />
+        <input type="date" name="date" defaultValue={date} max={max} required className="border rounded px-3 py-2" />
       </label>
       <button type="submit" disabled={pending} className="border rounded px-3 py-2 font-semibold">
         Save date

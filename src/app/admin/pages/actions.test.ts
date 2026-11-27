@@ -449,6 +449,10 @@ test("set-post-date", async () => {
   await expect(setPostDate({}, dateForm(post.id, "2026-01-15"))).resolves.toEqual({ message: "Saved" });
   expect((await reload(post.id)).publishedAt).toEqual(new Date("2026-01-15T00:00:00Z"));
   expect(updateTag).toHaveBeenCalledWith(pageTag(post.slug));
+  const today = new Date().toISOString().slice(0, 10);
+  await expect(setPostDate({}, dateForm(post.id, today))).resolves.toEqual({ message: "Saved" });
+  expect((await reload(post.id)).publishedAt).toEqual(new Date(`${today}T00:00:00Z`));
+  await setPostDate({}, dateForm(post.id, "2026-01-15"));
   const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
   await expect(setPostDate({}, dateForm(post.id, tomorrow))).resolves.toEqual({ error: "The date cannot be after today." });
   for (const bad of ["2026-02-30", "15/01/2026", ""])

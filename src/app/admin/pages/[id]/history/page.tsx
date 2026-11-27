@@ -81,7 +81,11 @@ async function History({ params }: { params: Promise<{ id: string }> }) {
         )}
       </div>
       {page.kind === "post" && (
-        <PostDateForm id={page.id} date={page.publishedAt?.toISOString().slice(0, 10) ?? ""} />
+        <PostDateForm
+          id={page.id}
+          date={page.publishedAt?.toISOString().slice(0, 10) ?? ""}
+          max={new Date().toISOString().slice(0, 10)}
+        />
       )}
       {revisions.length === HISTORY_LIMIT && <p>Showing the latest {HISTORY_LIMIT} revisions.</p>}
       {revisions.length === 0 ? (
