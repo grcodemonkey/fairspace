@@ -7,7 +7,7 @@ import { getDb } from "@/db";
 import { pageRevisions, pages, slugRedirects } from "@/db/schema";
 import { requireAdmin, requireUser } from "@/guards";
 import { goLive, invalidatePage, lockPage, lockSlugs } from "@/puck/publish";
-import { normalizeSlug, RESERVED_SLUGS, SLUG_FORMAT } from "@/puck/slug";
+import { normalizeSlug, slugError } from "@/puck/slug";
 import { PageDataError, parsePageData } from "@/puck/validate";
 
 // The typed values come back with the error: React resets the form after an action.
@@ -25,8 +25,8 @@ export async function createPage(_prev: CreatePageState, formData: FormData): Pr
   const fail = (error: string) => ({ error, title, slug });
   if (kind !== "page" && kind !== "post") return fail("Invalid request.");
   if (!title) return fail("Enter a title.");
-  if (!SLUG_FORMAT.test(slug)) return fail("Use lower-case letters, numbers and single dashes in the slug.");
-  if (RESERVED_SLUGS.includes(slug)) return fail("That slug is reserved.");
+  const invalid = slugError(slug);
+  if (invalid) return fail(invalid);
   // A post named `home` would take the slug the home page needs.
   if (kind === "post" && slug === "home") return fail("That slug is reserved.");
 
@@ -188,8 +188,9 @@ export async function changeSlug(_prev: PublishState, formData: FormData): Promi
   const id = field(formData, "id");
   const slug = normalizeSlug(String(formData.get("slug") ?? ""));
   if (!id) return { error: "Invalid request." };
-  if (!SLUG_FORMAT.test(slug)) return { error: "Use lower-case letters, numbers and single dashes in the slug." };
-  if (RESERVED_SLUGS.includes(slug) || slug === "home") return { error: "That slug is reserved." };
+  const invalid = slugError(slug);
+  if (invalid) return { error: invalid };
+  if (slug === "home") return { error: "That slug is reserved." };
   let result: { error: string } | { old: string } | null;
   try {
     result = await getDb().transaction(async (tx) => {
@@ -198,7 +199,7 @@ export async function changeSlug(_prev: PublishState, formData: FormData): Promi
       if (!page) return null;
       if (page.slug === "home") return { error: "The home page address cannot change." };
       if (page.slug === slug) return { old: slug };
-      const [redirect] = await tx.select().from(slugRedirects).where(eq(slugRedirects.slug, slug));
+      const [redirect] = await tx.select({ pageId: slugRedirects.pageId }).from(slugRedirects).where(eq(slugRedirects.slug, slug));
       if (redirect && redirect.pageId !== id) return { error: "That slug is in use." };
       // A rename back to an old slug of this page: the page owns it again, so the redirect row goes.
       if (redirect) await tx.delete(slugRedirects).where(eq(slugRedirects.slug, slug));

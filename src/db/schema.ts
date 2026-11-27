@@ -85,7 +85,7 @@ export const pages = pgTable(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    // Set at create and never changed. Slugs stay unique across both kinds (one namespace). Old slugs held by
+    // The kind is set at create and never changed; the slug can change (changeSlug). Slugs stay unique across both kinds (one namespace). Old slugs held by
     // slug_redirects share that namespace: changeSlug and createPage check both tables under lockSlugs.
     kind: pageKind("kind").notNull().default("page"),
     slug: text("slug").notNull().unique(),

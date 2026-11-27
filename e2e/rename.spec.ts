@@ -6,10 +6,12 @@ const sql = postgres(process.env.DATABASE_URL!, { max: 1 });
 const run = crypto.randomUUID().slice(0, 8);
 const oldSlug = `e2e-rename-${run}`;
 const newSlug = `e2e-renamed-${run}`;
+const oldPost = `e2e-old-post-${run}`;
+const newPost = `e2e-new-post-${run}`;
 let userId = "";
 
 test.afterAll(async () => {
-  await sql`delete from pages where slug in (${oldSlug}, ${newSlug})`; // cascades to revisions and redirects
+  await sql`delete from pages where slug in (${oldSlug}, ${newSlug}, ${oldPost}, ${newPost})`; // cascades to revisions and redirects
   if (userId) await sql`delete from users where id = ${userId}`;
   await sql.end();
 });
@@ -54,4 +56,34 @@ test("rename-redirects-old-address", async ({ browser, baseURL, request }) => {
   await create.getByRole("button", { name: "Create page" }).click();
   await expect(page.getByText("That slug is in use.")).toBeVisible();
   await context.close();
+});
+
+test("post-rename-redirects-under-news", async ({ browser, baseURL, request }) => {
+  const context = await browser.newContext();
+  const user = await signInAs(sql, context, baseURL!, "editor");
+  const page = await context.newPage();
+  await page.goto("/admin/news");
+  const create = page.getByRole("form", { name: "New post" });
+  await create.getByLabel("Title").fill(`Post ${run}`);
+  await create.getByLabel("Slug").fill(oldPost);
+  await create.getByRole("button", { name: "Create post" }).click();
+  await expect(page).toHaveURL(/\/admin\/pages\/([\w-]+)\/edit$/);
+  const id = page.url().match(/pages\/([\w-]+)\/edit/)![1];
+  await page.getByRole("button", { name: "Publish" }).click();
+  await expect(page.getByRole("status").filter({ hasText: /^Published$/ })).toBeVisible();
+  expect((await request.get(`/news/${oldPost}`)).status()).toBe(200);
+
+  await page.goto(`/admin/pages/${id}/history`);
+  const form = page.getByRole("form", { name: "Address" });
+  await form.getByLabel("Address").fill(newPost);
+  await form.getByRole("button", { name: "Change address" }).click();
+  await expect(form.getByText("Saved")).toBeVisible();
+
+  const moved = await request.get(`/news/${oldPost}`, { maxRedirects: 0 });
+  expect(moved.status()).toBe(308);
+  expect(new URL(moved.headers().location.split(",")[0], baseURL!).pathname).toBe(`/news/${newPost}`);
+  expect((await request.get(`/news/${newPost}`)).status()).toBe(200);
+  expect((await request.get(`/${oldPost}`)).status()).toBe(404); // an old post slug is not a page address
+  await context.close();
+  await sql`delete from users where id = ${user.id}`;
 });

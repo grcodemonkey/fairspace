@@ -1,9 +1,10 @@
 // @vitest-environment node
 import { eq, inArray } from "drizzle-orm";
+import { cacheTag } from "next/cache";
 import { afterAll, expect, test, vi } from "vitest";
 import { getDb } from "@/db";
 import { pageRevisions, pages, slugRedirects } from "@/db/schema";
-import { getPublishedPage } from "./published";
+import { getPublishedPage, pageTag } from "./published";
 
 // "use cache" is a no-op outside Next; stub the cache APIs it calls.
 vi.mock("next/cache", () => ({ cacheLife: vi.fn(), cacheTag: vi.fn() }));
@@ -80,4 +81,15 @@ test("redirect-hidden-when-unpublished", async () => {
   expect(await getPublishedPage(`old-draft-${run}`)).toBeNull();
   await publish(page.id, page.id, "Live");
   expect(await getPublishedPage(`old-draft-${run}`)).toEqual({ redirectTo: `/${page.slug}` });
+});
+
+test("redirect-tags-old-and-current-slug", async () => {
+  const page = await insertPage("tagged");
+  await publish(page.id, page.id, "Live");
+  await getDb().insert(slugRedirects).values({ slug: `old-tagged-${run}`, pageId: page.id });
+  vi.mocked(cacheTag).mockClear();
+  await getPublishedPage(`old-tagged-${run}`);
+  // A rename or an unpublish of the target must clear the cached redirect, and so must a new page on the old slug.
+  expect(cacheTag).toHaveBeenCalledWith(pageTag(`old-tagged-${run}`));
+  expect(cacheTag).toHaveBeenCalledWith(pageTag(page.slug));
 });
