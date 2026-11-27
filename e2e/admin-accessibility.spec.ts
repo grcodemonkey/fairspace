@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { type Browser, expect, type Locator, type Page, test, type TestInfo } from "@playwright/test";
+import { type Browser, type BrowserContext, expect, type Locator, type Page, test, type TestInfo } from "@playwright/test";
 import postgres from "postgres";
 import { expectNoViolations, PNG, signInAs } from "./helpers";
 
@@ -51,13 +51,24 @@ test.afterAll(async () => {
     await sql`delete from media where id = ${mediaId}`;
     if (userIds.length) await sql`delete from users where id in ${sql(userIds)}`; // and to the sessions
   } finally {
-    await s3.send(new DeleteObjectCommand({ Bucket: process.env.S3_BUCKET, Key: mediaKey }));
-    await sql.end();
+    try {
+      await s3.send(new DeleteObjectCommand({ Bucket: process.env.S3_BUCKET, Key: mediaKey }));
+    } finally {
+      s3.destroy();
+      await sql.end();
+    }
   }
+});
+
+// Every context newPage opens; afterEach closes them, also when a scan fails.
+const contexts: BrowserContext[] = [];
+test.afterEach(async () => {
+  await Promise.all(contexts.splice(0).map((context) => context.close()));
 });
 
 async function newPage(browser: Browser, baseURL: string, colorScheme: "light" | "dark", role?: "admin" | "editor") {
   const context = await browser.newContext({ baseURL, colorScheme, viewport: { width: 1440, height: 900 } });
+  contexts.push(context);
   // No third-party traffic: the scan does not depend on the network.
   await context.route(/^(?!http:\/\/localhost:3000\/)/, (route) => route.abort());
   if (role) userIds.push((await signInAs(sql, context, baseURL, role)).id);
@@ -75,18 +86,19 @@ async function visit(page: Page, url: string, ready: (page: Page) => Locator, te
 const h1 = (name: string | RegExp) => (page: Page) => page.getByRole("heading", { level: 1, name });
 
 for (const colorScheme of ["light", "dark"] as const) {
-  test(`axe-admin-${colorScheme}`, async ({ browser, baseURL }, testInfo) => {
-    test.setTimeout(180_000);
-    const scan = (page: Page, url: string, ready: (page: Page) => Locator, name: string) =>
-      visit(page, url, ready, testInfo, `${name}-${colorScheme}`);
+  const scanIn = (testInfo: TestInfo) => (page: Page, url: string, ready: (page: Page) => Locator, name: string) =>
+    visit(page, url, ready, testInfo, `${name}-${colorScheme}`);
 
-    // Signed out.
+  test(`axe-guest-${colorScheme}`, async ({ browser, baseURL }, testInfo) => {
+    const scan = scanIn(testInfo);
     const guest = await newPage(browser, baseURL!, colorScheme);
     await scan(guest, "/sign-in", h1("Sign in"), "sign-in");
     await scan(guest, "/sign-in/check-email", h1("Check your email"), "sign-in-check-email");
-    await guest.context().close();
+  });
 
-    // As admin.
+  test(`axe-admin-${colorScheme}`, async ({ browser, baseURL }, testInfo) => {
+    test.setTimeout(180_000);
+    const scan = scanIn(testInfo);
     const page = await newPage(browser, baseURL!, colorScheme, "admin");
     await scan(page, "/admin", (p) => p.getByRole("link", { name: "Menu" }), "admin");
     await scan(page, "/admin/pages", (p) => p.getByRole("link", { name: "Admin a11y" }).first(), "pages");
@@ -109,8 +121,8 @@ for (const colorScheme of ["light", "dark"] as const) {
     await brand.getByLabel("Primary color, light mode").fill("#9ca3af");
     await brand.getByRole("button", { name: "Save brand" }).click();
     await expect(brand.getByRole("status")).toHaveText(/needs 4\.5:1/);
-    // The color preview (the inline-styled sample) shows the refused color on purpose; the error text is scanned.
-    await expectNoViolations(new AxeBuilder({ page }).exclude("#brand [style]"), testInfo, `settings-brand-error-${colorScheme}`);
+    // The color preview shows the refused color on purpose; the error text is scanned.
+    await expectNoViolations(new AxeBuilder({ page }).exclude("[data-axe-skip]"), testInfo, `settings-brand-error-${colorScheme}`);
 
     await brand.getByRole("button", { name: "Choose media" }).click();
     await expect(page.getByRole("dialog").getByRole("button", { name: filename })).toBeVisible();
@@ -128,12 +140,13 @@ for (const colorScheme of ["light", "dark"] as const) {
     await page.getByRole("button", { name: "Choose media" }).click(); // the page's share image
     await expect(page.getByRole("dialog").getByRole("button", { name: filename })).toBeVisible();
     await expectNoViolations(ours(), testInfo, `editor-media-picker-${colorScheme}`);
-    await page.context().close();
+  });
 
-    // As editor: fewer links, and the forbidden page.
+  // Fewer links, and the forbidden page.
+  test(`axe-editor-role-${colorScheme}`, async ({ browser, baseURL }, testInfo) => {
+    const scan = scanIn(testInfo);
     const editor = await newPage(browser, baseURL!, colorScheme, "editor");
     await scan(editor, "/admin", (p) => p.getByRole("link", { name: "Media" }), "admin-as-editor");
     await scan(editor, "/admin/settings", h1("No access"), "forbidden");
-    await editor.context().close();
   });
 }

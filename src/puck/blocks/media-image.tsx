@@ -33,7 +33,7 @@ export function MediaImage({ id, puck, sizes, crop }: { id: string | null; puck:
         <Image src={meta.url} alt={alt} width={0} height={0} sizes={sizes} className="h-auto w-full" />
       )}
       {puck.isEditing && meta.alt === null && (
-        <p className="mt-1 text-sm text-red-800">No alt text. Add it in the media library.</p>
+        <p className="mt-1 text-sm text-danger">No alt text. Add it in the media library.</p>
       )}
     </>
   );
