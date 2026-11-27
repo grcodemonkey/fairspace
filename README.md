@@ -59,7 +59,15 @@ A published page shows at `/<slug>`. The page with slug `home` shows at `/`, and
 
 Search and sharing: in the editor's page fields, set a Description (at most 300 characters; about 160 shows in search results), a Social image (from the media library) and "Hide from search engines". They fill the `description`, canonical, `og:*` and `twitter:*` tags on the published page. "Hide" adds `robots: noindex`. Pages are prerendered, so set `AUTH_URL` at build time and at run time: the canonical and `og:image` URLs are fixed at build. A page with no social image has no `og:image`.
 
-Blocks: Hero, Heading, Rich text, Button and Columns (2–4 columns that stack on mobile). The server checks every block value on save, publish and restore. Links must start with `https://`, `http://`, `mailto:`, `tel:`, `/` or `#`; rich text is cleaned to a short list of safe tags.
+Blocks: Hero, Heading, Rich text, Button, Columns (2–4 columns that stack on mobile), Video, Embed and Donate. The server checks every block value on save, publish and restore. Links must start with `https://`, `http://`, `mailto:`, `tel:`, `/` or `#`; rich text is cleaned to a short list of safe tags.
+
+Video, Embed and Donate take a page link. Editors never paste embed code or HTML.
+
+- **Video**: a YouTube or Vimeo video link. It plays from `youtube-nocookie.com` or with Vimeo's "do not track" option. The title is required; screen readers read it.
+- **Embed**: a Google Forms link (`https://docs.google.com/forms/d/e/…/viewform`) or a Donorbox embed link (`https://donorbox.org/embed/…`, from the campaign's "Embed Code" in Donorbox). `forms.gle` short links do not work: open the form and copy the full link.
+- **Donate**: a button that links to any donation page, for example Givebutter, Donorbox or PayPal (`https://www.paypal.com/donate/?hosted_button_id=…`). PayPal pages cannot show inside a frame, and Givebutter offers only a script widget (no frame link), so use Donate for them.
+
+Video and Embed frames are sandboxed and load only when a visitor scrolls near them. The site sends a `Content-Security-Policy: frame-src` header that allows frames only from these sites. To add a site, change `src/puck/embed-providers.ts`.
 
 ## Media storage
 

@@ -56,6 +56,10 @@ test("published-page-renders", async ({ page }) => {
   await expect(page.locator('head meta[property="og:site_name"]')).toHaveAttribute("content", siteName);
   await expect(page.getByText(`Draft title ${run}`)).toHaveCount(0);
   await expect(page.getByRole("link", { name: siteName })).toBeVisible();
+  const csp = response?.headers()["content-security-policy"] ?? "";
+  expect(csp).toMatch(/^frame-src 'self' /);
+  expect(csp).toContain("https://www.youtube-nocookie.com");
+  expect(csp).not.toMatch(/youtube\.com|\*/);
 });
 
 test("draft-only-page-404", async ({ page }) => {

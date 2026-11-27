@@ -44,5 +44,24 @@ export const allBlocksFixture = (): Data => ({
       },
     },
     { type: "Button", props: { id: "button-1", label: "Contact us", href: "mailto:hello@example.org", variant: "secondary" } },
+    { type: "Video", props: { id: "video-1", url: "https://www.youtube.com/watch?v=aqz-KE-bpKQ", title: "Our work in two minutes" } },
+    {
+      type: "Embed",
+      props: {
+        id: "embed-1",
+        url: "https://docs.google.com/forms/d/e/1FAIpQLSfD7mPwX9Xl2D5oZ8h3bQ0wZzq1JYJ8yWcXrN2sQ3x4y5z6aA/viewform",
+        title: "Volunteer sign-up form",
+        height: 800,
+      },
+    },
+    {
+      type: "Donate",
+      props: {
+        id: "donate-1",
+        label: "Give now",
+        href: "https://www.paypal.com/donate/?hosted_button_id=EXAMPLE123",
+        text: "Gifts are processed by PayPal.",
+      },
+    },
   ],
 });
