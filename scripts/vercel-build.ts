@@ -8,7 +8,6 @@ export const REQUIRED_ENV = [
   "EMAIL_SERVER",
   "EMAIL_FROM",
   "ADMIN_EMAIL",
-  "S3_ENDPOINT",
   "S3_REGION",
   "S3_BUCKET",
   "S3_ACCESS_KEY_ID",

@@ -4,6 +4,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { getMediaMeta, resolvePageMedia } from "@/media-library";
 import { pageConfig } from "@/puck/config";
 import { pageMetadata } from "@/puck/seo";
+import { siteUrl } from "@/sitemap";
 import { getPublishedPage } from "@/puck/published";
 import { publicPath, SLUG_FORMAT } from "@/puck/slug";
 import { getSiteSettings } from "@/site-settings";
@@ -38,7 +39,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     image: (typeof socialImage === "string" ? await getMediaMeta(socialImage) : null) ?? settings.defaultShareImage,
     siteName: settings.siteName,
     defaultDescription: settings.defaultDescription,
-    siteUrl: process.env.AUTH_URL, // static prerender: baked at build, so AUTH_URL must be set at build time too
+    siteUrl: siteUrl()?.href, // static prerender: baked at build. AUTH_URL, else the Vercel production URL
   });
 }
 

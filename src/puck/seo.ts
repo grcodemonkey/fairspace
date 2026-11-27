@@ -44,7 +44,7 @@ export function pageMetadata({
       ...(description && { description }),
       ...(image && { images: [{ url: image.url, ...(image.alt && { alt: image.alt }) }] }),
     },
-    // Without a valid AUTH_URL, Next falls back to the Vercel URL or localhost.
+    // No valid siteUrl: Next resolves relative og images against the Vercel URL or localhost, but canonical and og:url stay relative. Callers pass siteUrl() from @/sitemap (AUTH_URL, else the Vercel production URL).
     ...(siteUrl && URL.canParse(siteUrl) && { metadataBase: new URL(siteUrl) }),
   };
 }
