@@ -7,11 +7,12 @@ import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { pageConfig } from "@/puck/config";
 import { publishPage, saveDraft } from "../../actions";
+import { MediaFieldRender } from "./media-field";
 
 export function PageEditor({ id, title, draft }: { id: string; title: string; draft: Data }) {
   // Stable: publish re-renders this page (updateTag refreshes it), and a new override function remounts the
   // actions and loses their status.
-  const overrides = useMemo(() => ({ headerActions: () => <EditorActions id={id} /> }), [id]);
+  const overrides = useMemo(() => ({ headerActions: () => <EditorActions id={id} />, fieldTypes: { media: MediaFieldRender } }), [id]);
   return <Puck config={pageConfig} data={draft} headerTitle={title} overrides={overrides} />;
 }
 

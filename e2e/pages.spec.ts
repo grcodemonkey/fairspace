@@ -6,12 +6,19 @@ import { signInAs } from "./helpers";
 const sql = postgres(process.env.DATABASE_URL!, { max: 1 });
 const slug = `e2e-page-${crypto.randomUUID().slice(0, 8)}`;
 const blocksSlug = `${slug}-blocks`;
+const seoSlug = `${slug}-seo`;
 const userIds: string[] = [];
+// Smallest valid PNG (1×1, transparent).
+const PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+  "base64",
+);
 const signInAsEditor = async (context: BrowserContext, baseURL: string) =>
   userIds.push((await signInAs(sql, context, baseURL, "editor")).id);
 
 test.afterAll(async () => {
-  await sql`delete from pages where slug in ${sql([slug, blocksSlug])}`;
+  await sql`delete from pages where slug in ${sql([slug, blocksSlug, seoSlug])}`;
+  if (userIds.length) await sql`delete from media where "uploadedBy" in ${sql(userIds)}`;
   if (userIds.length) await sql`delete from users where id in ${sql(userIds)}`; // the cascade removes the sessions
   await sql.end();
 });
@@ -43,6 +50,29 @@ test("editor-creates-and-saves-draft", async ({ page, context, baseURL }) => {
   await expect(page.getByRole("textbox", { name: "Title" })).toHaveValue("About our team");
   const [row] = await sql`select "publishedRevisionId" from pages where slug = ${slug}`;
   expect(row.publishedRevisionId).toBeNull();
+});
+
+test("editor-seo-fields-save", async ({ page, context, baseURL }) => {
+  await signInAsEditor(context, baseURL!);
+  const [{ id }] = await sql`
+    insert into pages (id, title, slug, draft)
+    values (${crypto.randomUUID()}, 'SEO page', ${seoSlug}, ${sql.json({ root: { props: { title: "SEO page" } }, content: [] })})
+    returning id`;
+  await page.goto(`/admin/pages/${id}/edit`);
+  const status = page.getByRole("status").filter({ hasText: /Saved|Page Description/ });
+
+  await page.getByRole("textbox", { name: /^Description/ }).fill("Short summary");
+  await page.getByRole("button", { name: "Choose media" }).click();
+  await page.getByRole("dialog").getByLabel("Upload a file").setInputFiles({ name: "share.png", mimeType: "image/png", buffer: PNG });
+  await expect(page.getByText("share.png").first()).toBeVisible();
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(status).toHaveText("Saved");
+  const [row] = await sql`select draft from pages where id = ${id}`;
+  expect(row.draft.root.props).toMatchObject({ description: "Short summary", socialImage: expect.any(String) });
+
+  await page.getByRole("textbox", { name: /^Description/ }).fill("x".repeat(301));
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(status).toHaveText("Page Description can be at most 300 characters.");
 });
 
 test("editor-shows-all-blocks", async ({ page, context, baseURL }) => {

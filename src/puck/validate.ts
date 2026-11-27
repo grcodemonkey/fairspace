@@ -1,4 +1,5 @@
 import type { Config, Data, Field, Fields, SlotField } from "@puckeditor/core";
+import { UUID } from "@/media";
 import { pageConfig } from "./config";
 import { UNSAFE_HREF_HINT, isSafeHref } from "./safe-href";
 import { sanitizeRichText } from "./sanitize";
@@ -6,6 +7,7 @@ import { sanitizeRichText } from "./sanitize";
 export const MAX_PAGE_DATA_BYTES = 512 * 1024;
 export const MAX_SLOT_DEPTH = 5;
 const MAX_ID_LENGTH = 100;
+const MEDIA_ID = new RegExp(`^${UUID}$`);
 
 /** A save error the editor can act on. `saveDraft` shows its message; other errors show a general one. */
 export class PageDataError extends Error {}
@@ -77,6 +79,14 @@ export function parsePageData(input: unknown, config: Config = pageConfig): Data
         if (field.metadata?.href && value !== "" && !isSafeHref(value)) {
           throw new PageDataError(`A ${name} link ${UNSAFE_HREF_HINT}.`);
         }
+        if (typeof field.metadata?.maxLength === "number" && value.length > field.metadata.maxLength) {
+          throw new PageDataError(`A ${name} text field can be at most ${field.metadata.maxLength} characters.`);
+        }
+        return value;
+      case "media":
+        // No DB lookup on save: a missing or non-image id renders no image.
+        if (value === null) return null;
+        if (typeof value !== "string" || !MEDIA_ID.test(value)) throw new PageDataError(`${label} must be a media file.`);
         return value;
       case "select":
       case "radio":

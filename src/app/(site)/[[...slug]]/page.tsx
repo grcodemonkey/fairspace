@@ -1,7 +1,9 @@
 import { Render } from "@puckeditor/core";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
+import { getMediaMeta } from "@/media-library";
 import { pageConfig } from "@/puck/config";
+import { pageMetadata } from "@/puck/seo";
 import { getPublishedPage } from "@/puck/published";
 import { SLUG_FORMAT } from "@/puck/slug";
 
@@ -24,9 +26,16 @@ type Props = PageProps<"/[[...slug]]">;
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const slug = resolveSlug((await params).slug);
   const data = slug ? await getPublishedPage(slug) : null;
-  // The published title only: pages.title follows the draft. #16 adds the rest.
-  const title = data?.root.props?.title;
-  return typeof title === "string" && title ? { title } : {};
+  if (!slug || !data) return {};
+  // The published root props only: pages.title follows the draft.
+  const props = data.root.props as Record<string, unknown> | undefined;
+  const socialImage = props?.socialImage;
+  return pageMetadata({
+    props,
+    slug,
+    image: typeof socialImage === "string" ? await getMediaMeta(socialImage) : null,
+    siteUrl: process.env.AUTH_URL, // static prerender: baked at build, so AUTH_URL must be set at build time too
+  });
 }
 
 export default async function PublicPage({ params }: Props) {

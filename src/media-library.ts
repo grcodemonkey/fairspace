@@ -1,6 +1,7 @@
 // Server only: the media library queries and the pending-upload sweeper.
 import { DeleteObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { and, desc, eq, isNotNull, isNull, like, lt, sql } from "drizzle-orm";
+import { cacheLife, cacheTag } from "next/cache";
 import { getDb } from "@/db";
 import { media } from "@/db/schema";
 import { mediaUrl, UUID } from "@/media";
@@ -28,6 +29,21 @@ export async function listMedia({ imagesOnly = false } = {}) {
     .orderBy(desc(media.uploadedAt))
     .limit(500);
   return rows.map((row) => ({ ...row, url: mediaUrl(row) }));
+}
+
+// Call `updateTag(mediaTag(id))` when the row's alt changes or the row goes, so cached page metadata follows.
+export const mediaTag = (id: string) => `media:${id}`;
+
+/** URL and alt of a finished image, or null (unknown id, pending, or not an image). Cached: public metadata is a static prerender. */
+export async function getMediaMeta(id: string): Promise<{ url: string; alt: string | null } | null> {
+  "use cache";
+  cacheLife("max");
+  cacheTag(mediaTag(id));
+  const [row] = await getDb()
+    .select({ id: media.id, contentType: media.contentType, alt: media.alt })
+    .from(media)
+    .where(and(eq(media.id, id), isNotNull(media.uploadedAt), like(media.contentType, "image/%")));
+  return row ? { url: mediaUrl(row), alt: row.alt } : null;
 }
 
 /** A finished upload, or undefined when it is missing or still pending. */

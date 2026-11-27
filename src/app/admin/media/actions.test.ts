@@ -3,6 +3,7 @@
 import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { eq, inArray } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, expect, test, vi } from "vitest";
+import { updateTag } from "next/cache";
 import { getDb } from "@/db";
 import { media, pageRevisions, pages, users } from "@/db/schema";
 import { requireUser } from "@/guards";
@@ -14,7 +15,7 @@ import { createUpload, deleteMediaAction, finishUpload, listMediaAction, updateA
 vi.mock("@/guards", () => ({ requireUser: vi.fn() }));
 // Both need a request scope; the sweeper is tested directly below.
 vi.mock("next/server", () => ({ after: vi.fn() }));
-vi.mock("next/cache", () => ({ refresh: vi.fn() }));
+vi.mock("next/cache", () => ({ refresh: vi.fn(), updateTag: vi.fn(), cacheLife: vi.fn(), cacheTag: vi.fn() }));
 
 const alice = { id: crypto.randomUUID(), email: `alice-${crypto.randomUUID()}@example.com`, role: "editor" as const };
 const bob = { id: crypto.randomUUID(), email: `bob-${crypto.randomUUID()}@example.com`, role: "editor" as const };
@@ -256,4 +257,21 @@ test.each(["draft", "published", "old-revision"] as const)("delete-refused-when-
   });
   expect(await rowOf(id)).toBeDefined();
   expect(await objectExists(key)).toBe(true);
+});
+
+test("media-tag-updated-on-alt-and-delete", async () => {
+  const id = await uploaded();
+  vi.mocked(updateTag).mockClear();
+  await updateAltAction({}, form({ id, alt: "Bike" }));
+  expect(updateTag).toHaveBeenCalledWith(`media:${id}`);
+
+  // Refused delete (not the owner): no refresh of the tag.
+  vi.mocked(updateTag).mockClear();
+  signedInAs(bob);
+  await deleteMediaAction({}, form({ id }));
+  expect(updateTag).not.toHaveBeenCalled();
+
+  signedInAs(alice);
+  await deleteMediaAction({}, form({ id }));
+  expect(updateTag).toHaveBeenCalledWith(`media:${id}`);
 });

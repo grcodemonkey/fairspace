@@ -3,13 +3,13 @@
 import { CopyObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { and, eq, isNotNull, isNull, like } from "drizzle-orm";
-import { refresh } from "next/cache";
+import { refresh, updateTag } from "next/cache";
 import { after } from "next/server";
 import { getDb } from "@/db";
 import { media } from "@/db/schema";
 import { requireUser } from "@/guards";
 import { ALLOWED_TYPES, ALT_MAX, MAX_BYTES, type MediaItem, SNIFF_BYTES, sniffType, validateUpload } from "@/media";
-import { findMediaUsage, listMedia, sweepPendingUploads } from "@/media-library";
+import { findMediaUsage, listMedia, mediaTag, sweepPendingUploads } from "@/media-library";
 import { getStorage, isNotFound } from "@/storage";
 
 const UPLOAD_URL_SECONDS = 300;
@@ -127,6 +127,7 @@ export async function updateAltAction(_: ActionState, formData: FormData): Promi
     .where(and(eq(media.id, idFrom(formData)), isNotNull(media.uploadedAt), like(media.contentType, "image/%")))
     .returning({ id: media.id });
   if (!updated.length) return { error: "Image not found." };
+  updateTag(mediaTag(updated[0].id)); // og:image:alt on pages
   refresh();
   return {};
 }
@@ -149,6 +150,7 @@ export async function deleteMediaAction(_: ActionState, formData: FormData): Pro
   // Row first: a failed object delete leaves only an unreferenced object, which is safe.
   const { client, bucket } = getStorage();
   await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: row.key })).catch(() => {});
+  updateTag(mediaTag(row.id));
   refresh();
   return {};
 }
