@@ -85,7 +85,8 @@ export const pages = pgTable(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
-    // Set at create and never changed. Slugs stay unique across both kinds (one namespace).
+    // Set at create and never changed. Slugs stay unique across both kinds (one namespace). Old slugs held by
+    // slug_redirects share that namespace: changeSlug and createPage check both tables under lockSlugs.
     kind: pageKind("kind").notNull().default("page"),
     slug: text("slug").notNull().unique(),
     title: text("title").notNull(),
@@ -129,6 +130,23 @@ export const pageRevisions = pgTable(
   },
   // The target of the same-page FK on pages. pageId comes first, so it also serves the history list and the cascade.
   (revision) => [unique("page_revisions_page_id_id_unique").on(revision.pageId, revision.id)],
+);
+
+// An old slug of a page. It points at the page id, never at a slug, so a redirect always lands on the current
+// address and chains cannot occur. The row stays, so no other page can take the old slug.
+export const slugRedirects = pgTable(
+  "slug_redirects",
+  {
+    slug: text("slug").primaryKey(),
+    pageId: text("pageId")
+      .notNull()
+      .references(() => pages.id, { onDelete: "cascade" }),
+    createdAt: timestamp("createdAt", { mode: "date", withTimezone: true }).notNull().defaultNow(),
+  },
+  (redirect) => [
+    check("slug_redirects_slug_format", sql`${redirect.slug} ~ '^[a-z0-9]+(-[a-z0-9]+)*$'`),
+    index("slug_redirects_page_id_idx").on(redirect.pageId),
+  ],
 );
 
 // Uploaded files. The object is in the S3 bucket at `key`; uploadedAt stays null while the upload is pending.

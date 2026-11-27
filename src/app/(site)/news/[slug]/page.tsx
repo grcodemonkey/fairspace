@@ -1,9 +1,9 @@
 import { Render } from "@puckeditor/core";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { getMediaMeta, resolvePageMedia } from "@/media-library";
 import { pageConfig } from "@/puck/config";
-import { getPublishedPage } from "@/puck/published";
+import { getPublishedPage, isRedirect } from "@/puck/published";
 import { pageMetadata } from "@/puck/seo";
 import { siteUrl } from "@/sitemap";
 import { publicPath, SLUG_FORMAT } from "@/puck/slug";
@@ -27,7 +27,7 @@ async function loadPost(slug: string) {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const post = await loadPost(slug);
-  if (!post) return {};
+  if (!post || isRedirect(post)) return {};
   // The published root props only: pages.title follows the draft.
   const props = post.data.root.props as Record<string, unknown> | undefined;
   const socialImage = props?.socialImage;
@@ -47,6 +47,7 @@ export default async function NewsPost({ params }: Props) {
   const { slug } = await params;
   const post = await loadPost(slug);
   if (!post) notFound();
+  if (isRedirect(post)) permanentRedirect(post.redirectTo);
   const title = post.data.root.props?.title;
   return (
     <article>

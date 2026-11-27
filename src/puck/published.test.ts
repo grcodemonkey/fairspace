@@ -2,7 +2,7 @@
 import { eq, inArray } from "drizzle-orm";
 import { afterAll, expect, test, vi } from "vitest";
 import { getDb } from "@/db";
-import { pageRevisions, pages } from "@/db/schema";
+import { pageRevisions, pages, slugRedirects } from "@/db/schema";
 import { getPublishedPage } from "./published";
 
 // "use cache" is a no-op outside Next; stub the cache APIs it calls.
@@ -30,7 +30,7 @@ afterAll(async () => {
 test("published-returns-revision-data", async () => {
   const page = await insertPage("published", "Not live yet");
   await publish(page.id, page.id, "Live title");
-  expect((await getPublishedPage(page.slug))?.data).toEqual(doc("Live title"));
+  expect(await getPublishedPage(page.slug)).toMatchObject({ data: doc("Live title") });
 });
 
 test("draft-only-returns-null", async () => {
@@ -44,7 +44,7 @@ test("kind-filter", async () => {
   const page = await insertPage("page");
   await publish(page.id, page.id, "Page");
   expect(await getPublishedPage(post.slug)).toBeNull();
-  expect((await getPublishedPage(post.slug, "post"))?.data).toEqual(doc("Post"));
+  expect(await getPublishedPage(post.slug, "post")).toMatchObject({ data: doc("Post") });
   expect(await getPublishedPage(page.slug, "post")).toBeNull();
 });
 
@@ -64,4 +64,20 @@ test("page-delete-cascades-revisions", async () => {
   await publish(page.id, page.id, "Live");
   await getDb().delete(pages).where(eq(pages.id, page.id));
   expect(await getDb().select().from(pageRevisions).where(eq(pageRevisions.pageId, page.id))).toHaveLength(0);
+});
+
+test("redirect-same-kind-only", async () => {
+  const post = await insertPage("moved-post", "Draft", "post");
+  await publish(post.id, post.id, "Post");
+  await getDb().insert(slugRedirects).values({ slug: `old-post-${run}`, pageId: post.id });
+  expect(await getPublishedPage(`old-post-${run}`, "post")).toEqual({ redirectTo: `/news/${post.slug}` });
+  expect(await getPublishedPage(`old-post-${run}`)).toBeNull();
+});
+
+test("redirect-hidden-when-unpublished", async () => {
+  const page = await insertPage("moved-draft");
+  await getDb().insert(slugRedirects).values({ slug: `old-draft-${run}`, pageId: page.id });
+  expect(await getPublishedPage(`old-draft-${run}`)).toBeNull();
+  await publish(page.id, page.id, "Live");
+  expect(await getPublishedPage(`old-draft-${run}`)).toEqual({ redirectTo: `/${page.slug}` });
 });
