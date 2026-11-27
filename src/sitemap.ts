@@ -13,9 +13,10 @@ export const SITEMAP_TAG = "sitemap";
  */
 export function siteUrl(): URL | null {
   const authUrl = process.env.AUTH_URL;
-  if (authUrl && URL.canParse(authUrl)) return new URL(authUrl);
+  // Origin only: a path in AUTH_URL (for example /app) would otherwise change how `new URL("/x", base)` resolves.
+  if (authUrl && URL.canParse(authUrl)) return new URL(new URL(authUrl).origin);
   const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-  return vercel && URL.canParse(`https://${vercel}`) ? new URL(`https://${vercel}`) : null;
+  return vercel && URL.canParse(`https://${vercel}`) ? new URL(new URL(`https://${vercel}`).origin) : null;
 }
 
 export type SitemapEntry = { path: string; lastModified: Date };

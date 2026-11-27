@@ -4,6 +4,7 @@ import { eq, inArray } from "drizzle-orm";
 import { afterAll, afterEach, expect, test, vi } from "vitest";
 import { getDb } from "@/db";
 import { pageRevisions, pages } from "@/db/schema";
+import { publicPath } from "@/puck/slug";
 import { getSitemapEntries, siteUrl } from "./sitemap";
 
 // "use cache" is a no-op outside Next; stub the cache APIs it calls.
@@ -42,12 +43,10 @@ test("sitemap-lists-live-indexable", async () => {
   expect(entries.find((e) => e.path === live.path)?.lastModified).toEqual(live.rev.createdAt);
 });
 
-test("sitemap-home-is-root", async () => {
-  // The slug is unique and the DB can already have a home page: only check it when it is free.
-  const [existing] = await getDb().select({ id: pages.id }).from(pages).where(eq(pages.slug, "home"));
-  if (existing) return;
-  await insert("home");
-  expect((await getSitemapEntries()).map((e) => e.path)).toContain("/");
+// getSitemapEntries maps every row with publicPath, so this is the home rule it applies.
+test("sitemap-home-is-root", () => {
+  expect(publicPath("page", "home")).toBe("/");
+  expect(publicPath("post", "home")).toBe("/news/home");
 });
 
 afterEach(() => vi.unstubAllEnvs());
@@ -60,6 +59,6 @@ test("site-url-order", () => {
   expect(siteUrl()?.href).toBe("https://example.vercel.app/");
   vi.stubEnv("AUTH_URL", "not a url");
   expect(siteUrl()?.href).toBe("https://example.vercel.app/");
-  vi.stubEnv("AUTH_URL", "https://example.org");
+  vi.stubEnv("AUTH_URL", "https://example.org/app?x=1");
   expect(siteUrl()?.href).toBe("https://example.org/");
 });
