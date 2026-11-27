@@ -29,7 +29,7 @@ Set these in `.env.local` (see `.env.example`):
 | Variable | What it is |
 | --- | --- |
 | `AUTH_SECRET` | Session secret. Generate with `openssl rand -base64 32`. |
-| `AUTH_URL` | Public site URL. Magic links use it. Set it on self-hosted installs. |
+| `AUTH_URL` | Public site URL. Magic links and absolute share URLs (canonical, `og:image`) use it. Set it on self-hosted installs, at build time and at run time. |
 | `EMAIL_SERVER` | SMTP URL. Local: `smtp://localhost:1025`. Resend: `smtp://resend:<API_KEY>@smtp.resend.com:465`. |
 | `EMAIL_FROM` | Sender address, for example `Fairspace <noreply@example.org>`. |
 | `ADMIN_EMAIL` | Email of the first admin. Used only while no admin exists. |
@@ -56,6 +56,8 @@ Admins and editors create pages at `/admin/pages` and edit them in the Puck edit
 "Publish" saves the content in the editor and makes it live at once. Each publish keeps a revision. The history is at `/admin/pages/<id>/history`: it lists every revision with a preview. Admins can restore a revision: restore copies it into a new live revision and into the draft, so the history stays complete. Editors and admins can unpublish a page; the draft and the history stay. Known limit: an editor tab that was open during a restore can save its old draft over the restored draft (the last save wins). The live page stays the same until the next publish.
 
 A published page shows at `/<slug>`. The page with slug `home` shows at `/`, and `/home` redirects to `/`. Public pages need no sign-in and show only the published revision, never the draft. Until a `home` page is published, `/` shows the welcome text.
+
+Search and sharing: in the editor's page fields, set a Description (at most 300 characters; about 160 shows in search results), a Social image (from the media library) and "Hide from search engines". They fill the `description`, canonical, `og:*` and `twitter:*` tags on the published page. "Hide" adds `robots: noindex`. Pages are prerendered, so set `AUTH_URL` at build time and at run time: the canonical and `og:image` URLs are fixed at build. A page with no social image has no `og:image`.
 
 Blocks: Hero, Heading, Rich text, Button and Columns (2–4 columns that stack on mobile). The server checks every block value on save, publish and restore. Links must start with `https://`, `http://`, `mailto:`, `tel:`, `/` or `#`; rich text is cleaned to a short list of safe tags.
 

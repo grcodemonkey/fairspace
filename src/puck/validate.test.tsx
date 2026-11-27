@@ -225,3 +225,28 @@ test("root-title-must-be-string", () => {
   expect(() => parsePageData({ root: { props: { title: { toString: "x" } } }, content: [] })).toThrow(/must be text/);
   expect(() => parsePageData({ root: { props: { title: "ok" } }, content: [] })).not.toThrow();
 });
+
+const root = (props: Record<string, unknown>) => ({ root: { props }, content: [] });
+
+test("description-max-length", () => {
+  expect(() => parsePageData(root({ description: "x".repeat(300) }))).not.toThrow();
+  expect(() => parsePageData(root({ description: "x".repeat(301) }))).toThrow("A Page text field can be at most 300 characters.");
+});
+
+test("media-id-format", () => {
+  const id = crypto.randomUUID();
+  for (const ok of [null, id]) expect(() => parsePageData(root({ socialImage: ok }))).not.toThrow();
+  for (const bad of ["../x", {}, 1, id.toUpperCase()]) {
+    expect(() => parsePageData(root({ socialImage: bad }))).toThrow(PageDataError);
+  }
+});
+
+test("noindex-boolean-only", () => {
+  expect(() => parsePageData(root({ noindex: true }))).not.toThrow();
+  expect(() => parsePageData(root({ noindex: "true" }))).toThrow(PageDataError);
+});
+
+test("root-seo-props-kept", () => {
+  const props = { title: "T", description: "D", socialImage: crypto.randomUUID(), noindex: false };
+  expect(parsePageData(root({ ...props, junk: 1 })).root.props).toEqual(props);
+});

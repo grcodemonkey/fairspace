@@ -8,7 +8,7 @@ import { UploadForm } from "./upload-form";
 
 /**
  * Chooses a file from the media library, or uploads a new one.
- * #14: wrap in a Puck `custom` field. #18: use with a hidden input. Store the id; read alt and URL at
+ * Puck pages use it through the `media` field type (edit/media-field.tsx). #18: use with a hidden input. Store the id; read alt and URL at
  * render time, so alt edits in the library show on pages.
  */
 export function MediaPicker({
