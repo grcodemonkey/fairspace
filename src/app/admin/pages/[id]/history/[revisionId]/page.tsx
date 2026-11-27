@@ -33,6 +33,7 @@ async function Revision({ params }: { params: Promise<{ id: string; revisionId: 
           Back to the history
         </Link>
       </div>
+      {/* Safe to render: parsePageData sanitized the data before publish wrote it, and restore parses it again. */}
       <Render config={pageConfig} data={revision.data} />
     </>
   );

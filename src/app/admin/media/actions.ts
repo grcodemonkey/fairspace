@@ -131,7 +131,7 @@ export async function updateAltAction(_: ActionState, formData: FormData): Promi
   return {};
 }
 
-/** Editors delete their own uploads; admins delete any. Refused while a page draft or any page revision uses the file. */
+/** Editors delete their own uploads; admins delete any. Refused while the draft or the live version of a page uses the file. */
 export async function deleteMediaAction(_: ActionState, formData: FormData): Promise<ActionState> {
   const user = await requireUser();
   const db = getDb();

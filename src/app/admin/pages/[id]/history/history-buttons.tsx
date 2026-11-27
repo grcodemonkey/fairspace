@@ -17,8 +17,8 @@ export function RestoreButton({ pageId, revisionId }: { pageId: string; revision
       <button type="submit" disabled={pending} className="border rounded px-2 py-1">
         Restore
       </button>
-      <p aria-live="polite" className="text-red-700">
-        {state.error}
+      <p aria-live="polite" className={state.error ? "text-red-700" : undefined}>
+        {state.error ?? state.message}
       </p>
     </form>
   );

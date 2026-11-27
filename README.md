@@ -92,7 +92,7 @@ In production (Cloudflare R2, Backblaze B2, AWS S3 or another S3-compatible serv
 - **Abandoned uploads**: an upload that never finishes is deleted after 1 hour, with its row and its `uploads/` object. Each new upload runs this cleanup after its response.
 - **Serving**: each finished file is public at `/media/<id>.<ext>`. The bucket stays private: the app streams the file with the type from the database, `X-Content-Type-Options: nosniff`, and `Cache-Control: public, max-age=86400`. Anyone who has the URL can open the file (the id is a random UUID). That is required, because public pages show these files.
 - **Alt text**: set it for each image in the library. An image with no alt text shows a "No alt text" badge. Mark an image "Decorative image" when it adds no information; it then gets an empty alt.
-- **Delete**: editors delete their own uploads; admins delete any upload. A file that a page draft or any saved version of a page uses cannot be deleted: the library lists the pages. Remove the file from those pages first.
+- **Delete**: editors delete their own uploads; admins delete any upload. A file that the draft or the live version of a page uses cannot be deleted: the library lists the pages. Remove the file from those pages first. Old versions in the page history do not block a delete; if you restore one, the deleted file shows no image.
 - **After a delete**: browsers and a CDN can keep the file for up to 1 day. The image optimizer cache keeps resized copies too; on a self-hosted install, `rm -rf .next/cache/images` removes them at once.
 
 ## Commands

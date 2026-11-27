@@ -7,6 +7,7 @@ import { pageRevisions, pages, users } from "@/db/schema";
 import { requireUser } from "@/guards";
 import { RestoreButton, UnpublishButton } from "./history-buttons";
 
+const HISTORY_LIMIT = 200;
 const formatDate = (date: Date) => `${date.toISOString().slice(0, 16).replace("T", " ")} UTC`;
 
 export default function HistoryPage({ params }: PageProps<"/admin/pages/[id]/history">) {
@@ -39,7 +40,9 @@ async function History({ params }: { params: Promise<{ id: string }> }) {
     .from(pageRevisions)
     .leftJoin(users, eq(users.id, pageRevisions.createdBy))
     .where(eq(pageRevisions.pageId, id))
-    .orderBy(desc(pageRevisions.createdAt));
+    .orderBy(desc(pageRevisions.createdAt))
+    // shortcut: only the latest 200 revisions; add paging if a page ever needs older ones in the UI.
+    .limit(HISTORY_LIMIT);
   const isAdmin = user.role === "admin";
   const href = page.slug === "home" ? "/" : `/${page.slug}`;
 
@@ -64,6 +67,7 @@ async function History({ params }: { params: Promise<{ id: string }> }) {
           <span>Not published</span>
         )}
       </div>
+      {revisions.length === HISTORY_LIMIT && <p>Showing the latest {HISTORY_LIMIT} revisions.</p>}
       {revisions.length === 0 ? (
         <p>No revisions yet. Publish the page from the editor.</p>
       ) : (

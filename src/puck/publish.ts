@@ -10,7 +10,11 @@ type Tx = Parameters<Parameters<ReturnType<typeof getDb>["transaction"]>[0]>[0];
 
 /** Locks the page row, so publish, restore and unpublish of one page run one after the other. */
 export async function lockPage(tx: Tx, id: string) {
-  const [page] = await tx.select({ id: pages.id, slug: pages.slug }).from(pages).where(eq(pages.id, id)).for("update");
+  const [page] = await tx
+    .select({ id: pages.id, slug: pages.slug, publishedRevisionId: pages.publishedRevisionId })
+    .from(pages)
+    .where(eq(pages.id, id))
+    .for("update");
   return page ?? null;
 }
 

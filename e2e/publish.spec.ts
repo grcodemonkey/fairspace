@@ -72,6 +72,7 @@ test("admin-restores", async ({ browser, baseURL }) => {
   page.once("dialog", (dialog) => dialog.accept());
   await page.locator("tbody tr").filter({ hasText: first }).getByRole("button", { name: "Restore" }).click();
   await expect(page.locator("tbody tr")).toHaveCount(3);
+  await expect(page.getByText("Restored", { exact: true })).toBeVisible();
   await page.goto(`/${slug}`);
   await expect(page).toHaveTitle(first);
   await page.context().close();

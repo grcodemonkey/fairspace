@@ -64,7 +64,7 @@ export async function saveDraft(id: string, data: unknown): Promise<{ ok: true }
   return { ok: true };
 }
 
-export type PublishState = { error?: string };
+export type PublishState = { error?: string; message?: string };
 
 const field = (formData: FormData, name: string) => {
   const value = formData.get(name);
@@ -100,6 +100,7 @@ export async function restoreRevision(_prev: PublishState, formData: FormData): 
   const result = await getDb().transaction(async (tx) => {
     const page = await lockPage(tx, pageId);
     if (!page) return null;
+    if (page.publishedRevisionId === revisionId) return { error: "That revision is already live." };
     const [revision] = await tx
       .select({ data: pageRevisions.data })
       .from(pageRevisions)
@@ -119,7 +120,7 @@ export async function restoreRevision(_prev: PublishState, formData: FormData): 
   if ("error" in result) return result;
   invalidatePage(result.slug);
   refresh();
-  return {};
+  return { message: "Restored" };
 }
 
 /** Takes the page off the site. The draft and the revisions stay. Editors and admins. */

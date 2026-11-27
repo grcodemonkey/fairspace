@@ -7,7 +7,7 @@ import { auth } from "@/auth";
 import { getDb } from "@/db";
 import { pageRevisions, pages, users } from "@/db/schema";
 import { allBlocksFixture } from "@/puck/all-blocks.fixture";
-import { getPublishedPage } from "@/puck/published";
+import { getPublishedPage, pageTag } from "@/puck/published";
 import { createPage, publishPage, restoreRevision, saveDraft, unpublishPage } from "./actions";
 
 vi.mock("@/auth", () => ({ auth: vi.fn() }));
@@ -226,6 +226,25 @@ test("publish-invalid-data-rejected", async () => {
   await expect(publishPage(page.id, bad)).resolves.toEqual({ error: "The page data is not valid." });
   expect(await revisionsOf(page.id)).toHaveLength(0);
   expect(await reload(page.id)).toEqual(page);
+  expect(updateTag).not.toHaveBeenCalled();
+});
+
+test("publish-home-first-time-invalidates", async () => {
+  signedInAsEditor();
+  // `home` is unique: reuse the test DB's row if another test made one, and delete it only if this test made it.
+  const [created] = await getDb()
+    .insert(pages)
+    .values({ title: "Home", slug: "home", draft: doc("Home") })
+    .onConflictDoNothing()
+    .returning();
+  const [home] = await getDb().select().from(pages).where(eq(pages.slug, "home"));
+  try {
+    await getDb().update(pages).set({ publishedRevisionId: null }).where(eq(pages.id, home.id));
+    await expect(publishPage(home.id, doc("Welcome"))).resolves.toEqual({ ok: true });
+    expect(updateTag).toHaveBeenCalledWith(pageTag("home"));
+  } finally {
+    if (created) await getDb().delete(pages).where(eq(pages.id, created.id));
+  }
 });
 
 test("publish-goes-live", async () => {
@@ -238,7 +257,7 @@ test("publish-goes-live", async () => {
   const saved = await reload(page.id);
   expect(saved).toMatchObject({ publishedRevisionId: revision.id, draft: doc("Live title"), title: "Live title" });
   expect(await getPublishedPage(page.slug)).toEqual(doc("Live title"));
-  expect(updateTag).toHaveBeenCalledWith(`page:${page.slug}`);
+  expect(updateTag).toHaveBeenCalledWith(pageTag(page.slug));
 });
 
 test("publish-twice-keeps-both", async () => {
@@ -286,12 +305,28 @@ test("restore-admin-copies-revision", async () => {
   const [first] = await revisionsOf(page.id);
   signedInAsAdmin();
   vi.mocked(updateTag).mockClear();
-  await expect(restoreRevision({}, restoreForm(page.id, first.id))).resolves.toEqual({});
+  await expect(restoreRevision({}, restoreForm(page.id, first.id))).resolves.toEqual({ message: "Restored" });
   const revisions = await revisionsOf(page.id);
   expect(revisions).toHaveLength(3);
   expect(revisions[2]).toMatchObject({ data: doc("One"), createdBy: adminId });
   expect(await reload(page.id)).toMatchObject({ publishedRevisionId: revisions[2].id, draft: doc("One"), title: "One" });
-  expect(updateTag).toHaveBeenCalledWith(`page:${page.slug}`);
+  expect(updateTag).toHaveBeenCalledWith(pageTag(page.slug));
+});
+
+test("restore-live-revision-refused", async () => {
+  signedInAsEditor();
+  const page = await insertPage("restore-live");
+  await publishPage(page.id, doc("One"));
+  const [live] = await revisionsOf(page.id);
+  const before = await reload(page.id);
+  signedInAsAdmin();
+  vi.mocked(updateTag).mockClear();
+  await expect(restoreRevision({}, restoreForm(page.id, live.id))).resolves.toEqual({
+    error: "That revision is already live.",
+  });
+  expect(await revisionsOf(page.id)).toHaveLength(1);
+  expect(await reload(page.id)).toEqual(before);
+  expect(updateTag).not.toHaveBeenCalled();
 });
 
 test("restore-other-page-refused", async () => {
@@ -303,11 +338,13 @@ test("restore-other-page-refused", async () => {
   const [theirs] = await revisionsOf(other.id);
   const before = await reload(page.id);
   signedInAsAdmin();
+  vi.mocked(updateTag).mockClear();
   await expect(restoreRevision({}, restoreForm(page.id, theirs.id))).resolves.toEqual({
     error: "That revision is not part of this page.",
   });
   expect(await revisionsOf(page.id)).toHaveLength(1);
   expect(await reload(page.id)).toEqual(before);
+  expect(updateTag).not.toHaveBeenCalled();
 });
 
 test("restore-invalid-old-data-refused", async () => {
@@ -323,6 +360,7 @@ test("restore-invalid-old-data-refused", async () => {
   });
   expect(await revisionsOf(page.id)).toHaveLength(1);
   expect(await reload(page.id)).toEqual(page);
+  expect(updateTag).not.toHaveBeenCalled();
 });
 
 test("unpublish-takes-page-offline", async () => {
@@ -334,7 +372,7 @@ test("unpublish-takes-page-offline", async () => {
   expect((await reload(page.id)).publishedRevisionId).toBeNull();
   expect(await getPublishedPage(page.slug)).toBeNull();
   expect(await revisionsOf(page.id)).toHaveLength(1);
-  expect(updateTag).toHaveBeenCalledWith(`page:${page.slug}`);
+  expect(updateTag).toHaveBeenCalledWith(pageTag(page.slug));
 });
 
 test("unpublish-signed-out-redirects", async () => {

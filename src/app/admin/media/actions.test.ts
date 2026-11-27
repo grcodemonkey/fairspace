@@ -240,10 +240,16 @@ test.each(["draft", "published", "old-revision"] as const)("delete-refused-when-
   pageIds.push(page.id);
   if (where !== "draft") {
     const [revision] = await getDb().insert(pageRevisions).values({ pageId: page.id, data: using }).returning();
-    // old-revision: a past version that is not live; restoring it (#12) needs the file.
+    // old-revision: a past version that is not live. It does not block delete; a restore of it shows no image.
     if (where === "published") {
       await getDb().update(pages).set({ publishedRevisionId: revision.id }).where(eq(pages.id, page.id));
     }
+  }
+  if (where === "old-revision") {
+    expect(await deleteMediaAction({}, form({ id }))).toEqual({});
+    expect(await rowOf(id)).toBeUndefined();
+    expect(await objectExists(key)).toBe(false);
+    return;
   }
   expect(await deleteMediaAction({}, form({ id }))).toEqual({
     error: `Used on: ${title}. Remove it from these pages first.`,
