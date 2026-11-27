@@ -46,13 +46,13 @@ test("editor-publishes-live", async ({ browser, baseURL }) => {
   await page.goto(editUrl);
   await publish(page, first);
   await page.goto(`/${slug}`);
-  await expect(page).toHaveTitle(first);
+  await expect(page).toHaveTitle(`${first} · Fairspace`);
 
   // The second publish shows with no restart: updateTag expired the cached page.
   await page.goto(editUrl);
   await publish(page, second);
   await page.goto(`/${slug}`);
-  await expect(page).toHaveTitle(second);
+  await expect(page).toHaveTitle(`${second} · Fairspace`);
   await page.context().close();
 });
 
@@ -74,7 +74,7 @@ test("admin-restores", async ({ browser, baseURL }) => {
   await expect(page.locator("tbody tr")).toHaveCount(3);
   await expect(page.getByText("Restored", { exact: true })).toBeVisible();
   await page.goto(`/${slug}`);
-  await expect(page).toHaveTitle(first);
+  await expect(page).toHaveTitle(`${first} · Fairspace`);
   await page.context().close();
 });
 
