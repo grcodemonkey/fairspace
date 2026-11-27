@@ -9,7 +9,7 @@ import { getDb } from "@/db";
 import { media, siteSettings, users } from "@/db/schema";
 import { getSiteSettings, SITE_SETTINGS_TAG } from "@/site-settings";
 import { deleteMediaAction } from "../media/actions";
-import { saveBrandAction } from "./actions";
+import { saveBrandAction, saveSeoAction } from "./actions";
 
 vi.mock("@/auth", () => ({ auth: vi.fn() }));
 vi.mock("next/cache", () => ({ refresh: vi.fn(), updateTag: vi.fn(), cacheLife: vi.fn(), cacheTag: vi.fn() }));
@@ -109,6 +109,8 @@ test("brand-save-upserts", async () => {
     primaryLight: valid.primaryLight,
     primaryDark: valid.primaryDark,
     font: "serif",
+    defaultDescription: null,
+    defaultShareImage: null,
   });
 });
 
@@ -126,6 +128,8 @@ test("defaults-when-unset", async () => {
     primaryLight: "#1d4ed8",
     primaryDark: "#60a5fa",
     font: "geist",
+    defaultDescription: null,
+    defaultShareImage: null,
   });
 });
 
@@ -133,6 +137,59 @@ test("logo-delete-refused", async () => {
   await saveBrandAction({}, form({ ...valid, logoId: logo }));
   expect(await deleteMediaAction({}, form({ id: logo }))).toEqual({
     error: "Used as the site logo. Change the logo in Settings first.",
+  });
+  expect((await getDb().select().from(media).where(eq(media.id, logo))).length).toBe(1);
+});
+
+const seo = { defaultDescription: "We feed the river valley.", defaultShareImageId: logo };
+
+test("seo-admin-only", async () => {
+  signedInAs("editor");
+  await expect(saveSeoAction({}, form(seo))).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;403" });
+  expect(await rows()).toEqual([]);
+});
+
+test("seo-description-cap", async () => {
+  expect(await saveSeoAction({}, form({ ...seo, defaultDescription: "x".repeat(301) }))).toEqual({
+    error: "The default description can be at most 300 characters.",
+  });
+  expect(await rows()).toEqual([]);
+  expect(await saveSeoAction({}, form({ ...seo, defaultDescription: "x".repeat(300) }))).toEqual({ message: "Saved." });
+});
+
+test("seo-image-not-image-refused", async () => {
+  const error = "The default share image must be an image from the media library.";
+  for (const bad of [pdf, crypto.randomUUID(), "../x", logo.toUpperCase()]) {
+    expect(await saveSeoAction({}, form({ ...seo, defaultShareImageId: bad }))).toEqual({ error });
+  }
+  expect(await rows()).toEqual([]);
+});
+
+test("seo-save-touches-only-its-columns", async () => {
+  await saveBrandAction({}, form(valid));
+  expect(await saveSeoAction({}, form(seo))).toEqual({ message: "Saved." });
+  const [saved] = await rows();
+  expect(saved).toMatchObject({ ...brand, ...seo });
+  expect(updateTag).toHaveBeenCalledWith(SITE_SETTINGS_TAG);
+  expect(await getSiteSettings()).toMatchObject({
+    siteName: brand.siteName,
+    defaultDescription: seo.defaultDescription,
+    defaultShareImage: { id: logo, url: `/media/${logo}.png`, alt: null },
+  });
+  // Clearing both stores null; the brand stays.
+  await saveSeoAction({}, form({ defaultDescription: "", defaultShareImageId: "" }));
+  expect((await rows())[0]).toMatchObject({ ...brand, defaultDescription: null, defaultShareImageId: null });
+});
+
+test("seo-first-save-without-brand-keeps-default-name", async () => {
+  await saveSeoAction({}, form(seo));
+  expect((await getSiteSettings()).siteName).toBe("Fairspace");
+});
+
+test("share-image-delete-refused", async () => {
+  await saveSeoAction({}, form(seo));
+  expect(await deleteMediaAction({}, form({ id: logo }))).toEqual({
+    error: "Used as the site share image. Change the share image in Settings first.",
   });
   expect((await getDb().select().from(media).where(eq(media.id, logo))).length).toBe(1);
 });

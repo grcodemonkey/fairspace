@@ -148,6 +148,9 @@ export const siteSettings = pgTable(
     primaryLight: text("primaryLight"),
     primaryDark: text("primaryDark"),
     font: text("font"),
+    // #16 search and sharing defaults. The media delete action refuses the file; the FK is only the safety net.
+    defaultDescription: text("defaultDescription"),
+    defaultShareImageId: text("defaultShareImageId").references(() => media.id, { onDelete: "set null" }),
     updatedAt: timestamp("updatedAt", { mode: "date", withTimezone: true }).notNull().defaultNow(),
     updatedBy: text("updatedBy").references(() => users.id, { onDelete: "set null" }),
   },

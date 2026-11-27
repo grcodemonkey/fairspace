@@ -6,8 +6,7 @@ import { Heading } from "./blocks/heading";
 import { Hero } from "./blocks/hero";
 import { RichText } from "./blocks/rich-text";
 import { mediaField } from "./fields";
-
-const SEO_DESCRIPTION_MAX = 300;
+import { SEO_DESCRIPTION_MAX } from "./seo";
 
 // The one Puck config for the editor and (in #11) for <Render>. No hooks here or in the blocks, so it is safe on the server.
 // Use slot fields for nesting, never DropZone. Every field type a block uses needs a check in validate.ts.

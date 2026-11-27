@@ -6,8 +6,15 @@ import { BRAND_DEFAULTS, FONTS, onColor, safeHex } from "@/brand";
 import { getSiteSettings } from "@/site-settings";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { siteName } = await getSiteSettings();
-  return { title: { default: siteName, template: `%s · ${siteName}` } };
+  const { siteName, defaultDescription, defaultShareImage } = await getSiteSettings();
+  return {
+    title: { default: siteName, template: `%s · ${siteName}` },
+    // Pages with no description of their own (and the welcome page) show these.
+    ...(defaultDescription && { description: defaultDescription }),
+    ...(defaultShareImage && {
+      openGraph: { images: [{ url: defaultShareImage.url, ...(defaultShareImage.alt && { alt: defaultShareImage.alt }) }] },
+    }),
+  };
 }
 
 // The public theme shell. #19 menu renders here.

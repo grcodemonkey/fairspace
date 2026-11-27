@@ -105,6 +105,7 @@ Admins edit the site at `/admin/settings`. Editors get a 403.
 - **Logo**: an image from the media library. It replaces the site name in the header; its alt text is the site name. A file in use as the logo cannot be deleted.
 - **Primary colors**: one for light mode, one for dark mode. Buttons and links use them. Each must have at least 4.5:1 contrast on its page background (WCAG AA); a lower color is refused with its ratio. The text on a button is white or black, whichever has more contrast.
 - **Font**: one font for the whole public site: Geist (default), System sans, or Serif.
+- **Search and sharing**: a default description (at most 300 characters) and a default share image (an image from the media library). A page with no description or social image of its own uses them, and so does the welcome page. A file in use as the default share image cannot be deleted.
 
 Public pages show a save at once. The Puck editor preview keeps the default colors and font.
 

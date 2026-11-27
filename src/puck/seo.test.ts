@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { pageMetadata } from "./seo";
 
-const base = { slug: "about", image: null, siteUrl: "https://example.org", siteName: "Riverside" };
+const base = { slug: "about", image: null, siteUrl: "https://example.org", siteName: "Riverside", defaultDescription: null };
 
 test("og-title-plain-with-site-name", () => {
   expect(pageMetadata({ ...base, props: { title: "About" } }).openGraph).toMatchObject({ title: "About", siteName: "Riverside" });
@@ -33,4 +33,11 @@ test("image-alt-empty-has-no-alt-key", () => {
   const meta = pageMetadata({ ...base, props: {}, image: { url: "/media/x.png", alt: "" } });
   expect(meta.openGraph).toMatchObject({ images: [{ url: "/media/x.png" }] });
   expect(JSON.stringify(meta.openGraph)).not.toContain("alt");
+});
+
+test("default-description-fills-empty", () => {
+  const meta = pageMetadata({ ...base, defaultDescription: "Site wide", props: { description: " " } });
+  expect(meta.description).toBe("Site wide");
+  expect(meta.openGraph).toMatchObject({ description: "Site wide" });
+  expect(pageMetadata({ ...base, defaultDescription: "Site wide", props: { description: "Own" } }).description).toBe("Own");
 });
