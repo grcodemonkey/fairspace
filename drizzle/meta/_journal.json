@@ -71,6 +71,13 @@
       "when": 1795740363023,
       "tag": "0009_menu_items",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795740844948,
+      "tag": "0010_analytics_setting",
+      "breakpoints": true
     }
   ]
 }

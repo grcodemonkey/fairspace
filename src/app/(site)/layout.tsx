@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 import { BRAND_DEFAULTS, FONTS, onColor, safeHex } from "@/brand";
 import { getSiteSettings } from "@/site-settings";
+import { Analytics } from "./analytics";
 import { SiteMenu } from "./site-menu";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -53,6 +54,7 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
       </header>
       <main className="flex-1">{children}</main>
       <footer className="border-t px-8 py-4 text-sm text-gray-500">Built with Fairspace</footer>
+      <Analytics analytics={settings.analytics} />
     </div>
   );
 }

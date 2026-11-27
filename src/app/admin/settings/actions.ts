@@ -1,6 +1,7 @@
 "use server";
 
 import { refresh } from "next/cache";
+import { isAnalyticsProvider, validAnalytics } from "@/analytics";
 import { contrastRatio, DARK_BG, HEX, isFontKey, LIGHT_BG, MIN_CONTRAST, SITE_NAME_MAX } from "@/brand";
 import { requireAdmin } from "@/guards";
 import { isImage, UUID } from "@/media";
@@ -75,6 +76,31 @@ export async function saveSeoAction(_: ActionState, formData: FormData): Promise
   }
 
   await saveSiteSettings({ defaultDescription: defaultDescription || null, defaultShareImageId: imageId || null }, user.id!);
+  refresh();
+  return { message: "Saved." };
+}
+
+/** Admins only. The ID goes into a script tag on every public page, so it is checked strictly; an empty provider turns analytics off. */
+export async function saveAnalyticsAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  const user = await requireAdmin();
+
+  const provider = text(formData, "analyticsProvider");
+  if (!provider) {
+    await saveSiteSettings({ analyticsProvider: null, analyticsId: null }, user.id!);
+    refresh();
+    return { message: "Saved." };
+  }
+  if (!isAnalyticsProvider(provider)) return { error: "Choose a provider from the list." };
+
+  const raw = text(formData, "analyticsId");
+  const analytics = validAnalytics(provider, provider === "plausible" ? raw.toLowerCase() : raw.toUpperCase());
+  if (!analytics) {
+    return {
+      error: provider === "plausible" ? "Enter the domain only, like example.org." : "Enter a measurement ID like G-XXXXXXXXXX.",
+    };
+  }
+
+  await saveSiteSettings({ analyticsProvider: analytics.provider, analyticsId: analytics.id }, user.id!);
   refresh();
   return { message: "Saved." };
 }

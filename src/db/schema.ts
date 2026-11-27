@@ -151,6 +151,9 @@ export const siteSettings = pgTable(
     // #16 search and sharing defaults. The media delete action refuses the file; the FK is only the safety net.
     defaultDescription: text("defaultDescription"),
     defaultShareImageId: text("defaultShareImageId").references(() => media.id, { onDelete: "set null" }),
+    // #20 analytics: a provider from the allowlist and its ID. Both set or both null (the check below).
+    analyticsProvider: text("analyticsProvider"),
+    analyticsId: text("analyticsId"),
     updatedAt: timestamp("updatedAt", { mode: "date", withTimezone: true }).notNull().defaultNow(),
     updatedBy: text("updatedBy").references(() => users.id, { onDelete: "set null" }),
   },
@@ -161,6 +164,16 @@ export const siteSettings = pgTable(
     check("site_settings_primary_dark_hex", sql`${s.primaryDark} ~ '^#[0-9a-f]{6}$'`),
     check("site_settings_default_description_length", sql`char_length(${s.defaultDescription}) <= 300`),
     check("site_settings_font", sql`${s.font} in ('geist', 'system', 'serif')`),
+    // The ID goes into a script tag: the patterns copy src/analytics.ts (the action and the layout check again).
+    check(
+      "site_settings_analytics",
+      // coalesce matters: a null provider or id makes a branch null, and a null check result passes.
+      sql`coalesce(
+        (${s.analyticsProvider} is null and ${s.analyticsId} is null)
+        or (${s.analyticsProvider} = 'plausible' and ${s.analyticsId} ~ '^[a-z0-9-]+(\\.[a-z0-9-]+)+$' and char_length(${s.analyticsId}) <= 253)
+        or (${s.analyticsProvider} = 'google' and ${s.analyticsId} ~ '^G-[A-Z0-9]{4,20}$'),
+        false)`,
+    ),
   ],
 );
 
