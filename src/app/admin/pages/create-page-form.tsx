@@ -3,11 +3,12 @@
 import { useActionState } from "react";
 import { createPage } from "./actions";
 
-export function CreatePageForm() {
+export function CreatePageForm({ kind = "page" }: { kind?: "page" | "post" }) {
   const [state, action, pending] = useActionState(createPage, {});
   return (
-    <form action={action} aria-label="New page" className="flex flex-col gap-3 items-start max-w-sm">
-      <h2 className="text-xl font-semibold">New page</h2>
+    <form action={action} aria-label={`New ${kind}`} className="flex flex-col gap-3 items-start max-w-sm">
+      <input type="hidden" name="kind" value={kind} />
+      <h2 className="text-xl font-semibold">New {kind}</h2>
       <label className="flex flex-col gap-1 w-full">
         Title
         <input name="title" defaultValue={state.title} required className="border rounded px-3 py-2" />
@@ -22,7 +23,7 @@ export function CreatePageForm() {
         </p>
       )}
       <button type="submit" disabled={pending} className="border rounded px-3 py-2 font-semibold">
-        Create page
+        Create {kind}
       </button>
     </form>
   );

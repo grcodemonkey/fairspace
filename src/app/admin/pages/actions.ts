@@ -21,16 +21,20 @@ export async function createPage(_prev: CreatePageState, formData: FormData): Pr
   const user = await requireUser();
   const title = String(formData.get("title") ?? "").trim();
   const slug = normalizeSlug(String(formData.get("slug") ?? ""));
+  const kind = formData.get("kind") ?? "page";
   const fail = (error: string) => ({ error, title, slug });
+  if (kind !== "page" && kind !== "post") return fail("Invalid request.");
   if (!title) return fail("Enter a title.");
   if (!SLUG_FORMAT.test(slug)) return fail("Use lower-case letters, numbers and single dashes in the slug.");
   if (RESERVED_SLUGS.includes(slug)) return fail("That slug is reserved.");
+  // A post named `home` would take the slug the home page needs.
+  if (kind === "post" && slug === "home") return fail("That slug is reserved.");
 
   let id: string;
   try {
     [{ id }] = await getDb()
       .insert(pages)
-      .values({ title, slug, draft: { root: { props: { title } }, content: [] }, updatedBy: user.id ?? null })
+      .values({ kind, title, slug, draft: { root: { props: { title } }, content: [] }, updatedBy: user.id ?? null })
       .returning({ id: pages.id });
   } catch (error) {
     if (isUniqueViolation(error)) return fail("That slug is in use.");
@@ -142,4 +146,26 @@ export async function unpublishPage(_prev: PublishState, formData: FormData): Pr
   invalidatePage(slug);
   refresh();
   return {};
+}
+
+/** Sets a news post's publish date to a day no later than today (no scheduling). Editors and admins. */
+export async function setPostDate(_prev: PublishState, formData: FormData): Promise<PublishState> {
+  const user = await requireUser();
+  const id = field(formData, "id");
+  const date = field(formData, "date");
+  if (!id) return { error: "Invalid request." };
+  // Stored as 00:00 UTC of the day. The round trip refuses days that do not exist, such as 2026-02-30.
+  const day = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? new Date(`${date}T00:00:00Z`) : null;
+  if (!day || Number.isNaN(day.getTime()) || day.toISOString().slice(0, 10) !== date)
+    return { error: "Enter a valid date." };
+  if (date > new Date().toISOString().slice(0, 10)) return { error: "The date cannot be after today." };
+  const [post] = await getDb()
+    .update(pages)
+    .set({ publishedAt: day, updatedAt: new Date(), updatedBy: user.id ?? null })
+    .where(and(eq(pages.id, id), eq(pages.kind, "post")))
+    .returning({ slug: pages.slug });
+  if (!post) return { error: "Only a news post has a publish date." };
+  invalidatePage(post.slug);
+  refresh();
+  return { message: "Saved" };
 }

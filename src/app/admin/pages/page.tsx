@@ -1,4 +1,4 @@
-import { asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import Link from "next/link";
 import { Suspense } from "react";
 import { getDb } from "@/db";
@@ -29,6 +29,7 @@ async function PageList() {
       publishedRevisionId: pages.publishedRevisionId,
     })
     .from(pages)
+    .where(eq(pages.kind, "page")) // news posts are listed at /admin/news
     .orderBy(asc(pages.title));
 
   return (

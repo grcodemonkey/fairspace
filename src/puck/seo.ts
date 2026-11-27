@@ -10,32 +10,35 @@ export const SEO_DESCRIPTION_MAX = 300;
  */
 export function pageMetadata({
   props,
-  slug,
+  path,
   image,
+  publishedTime,
   siteUrl,
   siteName,
   defaultDescription,
 }: {
   props: Record<string, unknown> | undefined;
-  slug: string;
+  // From publicPath: the canonical and og:url.
+  path: string;
   image: { url: string; alt: string | null } | null;
   siteUrl: string | undefined;
   siteName: string;
   defaultDescription: string | null;
+  // News posts only: makes the share card an article with its date.
+  publishedTime?: Date | null;
 }): Metadata {
   const text = (value: unknown) => (typeof value === "string" ? value.trim() : "");
   const title = text(props?.title);
   const description = text(props?.description) || defaultDescription || "";
-  const canonical = slug === "home" ? "/" : `/${slug}`;
   return {
     ...(title && { title }),
     ...(description && { description }),
     // Relative: resolved against metadataBase.
-    alternates: { canonical },
+    alternates: { canonical: path },
     ...(props?.noindex === true && { robots: { index: false } }),
     openGraph: {
-      type: "website",
-      url: canonical,
+      ...(publishedTime ? { type: "article", publishedTime: publishedTime.toISOString() } : { type: "website" }),
+      url: path,
       siteName,
       ...(title && { title }),
       ...(description && { description }),

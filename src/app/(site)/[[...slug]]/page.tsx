@@ -5,7 +5,7 @@ import { getMediaMeta, resolvePageMedia } from "@/media-library";
 import { pageConfig } from "@/puck/config";
 import { pageMetadata } from "@/puck/seo";
 import { getPublishedPage } from "@/puck/published";
-import { SLUG_FORMAT } from "@/puck/slug";
+import { publicPath, SLUG_FORMAT } from "@/puck/slug";
 import { getSiteSettings } from "@/site-settings";
 
 // Each slug renders once as a static prerender, so notFound() gives a real 404 status.
@@ -26,15 +26,15 @@ type Props = PageProps<"/[[...slug]]">;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const slug = resolveSlug((await params).slug);
-  const data = slug ? await getPublishedPage(slug) : null;
-  if (!slug || !data) return {};
+  const page = slug ? await getPublishedPage(slug) : null;
+  if (!slug || !page) return {};
   // The published root props only: pages.title follows the draft.
-  const props = data.root.props as Record<string, unknown> | undefined;
+  const props = page.data.root.props as Record<string, unknown> | undefined;
   const socialImage = props?.socialImage;
   const settings = await getSiteSettings();
   return pageMetadata({
     props,
-    slug,
+    path: publicPath("page", slug),
     image: (typeof socialImage === "string" ? await getMediaMeta(socialImage) : null) ?? settings.defaultShareImage,
     siteName: settings.siteName,
     defaultDescription: settings.defaultDescription,
@@ -48,8 +48,8 @@ export default async function PublicPage({ params }: Props) {
   if (!slug) notFound();
   if (segments?.[0] === "home") permanentRedirect("/");
 
-  const data = await getPublishedPage(slug);
-  if (data) return <Render config={pageConfig} data={data} metadata={{ media: await resolvePageMedia(data) }} />;
+  const page = await getPublishedPage(slug);
+  if (page) return <Render config={pageConfig} data={page.data} metadata={{ media: await resolvePageMedia(page.data) }} />;
   if (slug !== "home") notFound();
 
   // A new install has no published home page yet.

@@ -31,6 +31,9 @@ async function SignedInAs() {
       <Link href="/admin/pages" className="underline">
         Pages
       </Link>
+      <Link href="/admin/news" className="underline">
+        News
+      </Link>
       <Link href="/admin/media" className="underline">
         Media
       </Link>

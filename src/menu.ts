@@ -1,8 +1,9 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { getDb } from "@/db";
 import { menuItems, pages } from "@/db/schema";
 import { isSafeHref, UNSAFE_HREF_HINT } from "@/puck/safe-href";
+import { publicPath } from "@/puck/slug";
 
 // The menu save and every change to what is live (invalidatePage in src/puck/publish.ts) call updateTag(MENU_TAG).
 export const MENU_TAG = "menu";
@@ -57,13 +58,12 @@ export async function getMenuForEdit() {
     db
       .select({ id: pages.id, title: pages.title, published: pages.publishedRevisionId })
       .from(pages)
+      .where(eq(pages.kind, "page")) // news posts are not in the picker; a menu can link one by URL
       .orderBy(asc(pages.title)),
   ]);
   const items: MenuInputItem[] = toTree(rows, ({ label, pageId, url }) => ({ label, pageId, url, children: [] }));
   return { items, pages: pageList.map(({ id, title, published }) => ({ id, title, published: !!published })) };
 }
-
-export const pageHref = (slug: string) => (slug === "home" ? "/" : `/${slug}`);
 
 /** The public menu. Items whose page is not live are left out, with all their children. */
 export async function getMenu(): Promise<MenuLinkItem[]> {
@@ -79,12 +79,13 @@ async function loadMenu(): Promise<MenuLinkItem[]> {
   const rows = await getDb()
     .select({ item: menuItems, slug: pages.slug, published: pages.publishedRevisionId })
     .from(menuItems)
-    .leftJoin(pages, eq(pages.id, menuItems.pageId))
+    // Pages only: an item that points at a news post is hidden like an unpublished page.
+    .leftJoin(pages, and(eq(pages.id, menuItems.pageId), eq(pages.kind, "page")))
     .orderBy(asc(menuItems.position));
   const hrefs = new Map<string, string>();
   for (const { item, slug, published } of rows) {
     if (item.url && isSafeHref(item.url)) hrefs.set(item.id, item.url);
-    else if (item.pageId && published && slug) hrefs.set(item.id, pageHref(slug));
+    else if (item.pageId && published && slug) hrefs.set(item.id, publicPath("page", slug));
   }
   // A hidden item drops out here, so no label of an unpublished page reaches the public HTML.
   const visible = rows.map((r) => r.item).filter((item) => hrefs.has(item.id));

@@ -12,10 +12,10 @@ const run = crypto.randomUUID().slice(0, 8);
 const slugs: string[] = [];
 const doc = (title: string) => ({ root: { props: { title } }, content: [] });
 
-async function insertPage(name: string, draftTitle = "Draft") {
+async function insertPage(name: string, draftTitle = "Draft", kind: "page" | "post" = "page") {
   const slug = `${name}-${run}`;
   slugs.push(slug);
-  const [row] = await getDb().insert(pages).values({ title: name, slug, draft: doc(draftTitle) }).returning();
+  const [row] = await getDb().insert(pages).values({ kind, title: name, slug, draft: doc(draftTitle) }).returning();
   return row;
 }
 async function publish(pageId: string, revisionOf: string, title: string) {
@@ -30,12 +30,22 @@ afterAll(async () => {
 test("published-returns-revision-data", async () => {
   const page = await insertPage("published", "Not live yet");
   await publish(page.id, page.id, "Live title");
-  expect(await getPublishedPage(page.slug)).toEqual(doc("Live title"));
+  expect((await getPublishedPage(page.slug))?.data).toEqual(doc("Live title"));
 });
 
 test("draft-only-returns-null", async () => {
   const page = await insertPage("draft-only");
   expect(await getPublishedPage(page.slug)).toBeNull();
+});
+
+test("kind-filter", async () => {
+  const post = await insertPage("post", "Draft", "post");
+  await publish(post.id, post.id, "Post");
+  const page = await insertPage("page");
+  await publish(page.id, page.id, "Page");
+  expect(await getPublishedPage(post.slug)).toBeNull();
+  expect((await getPublishedPage(post.slug, "post"))?.data).toEqual(doc("Post"));
+  expect(await getPublishedPage(page.slug, "post")).toBeNull();
 });
 
 test("unknown-slug-returns-null", async () => {

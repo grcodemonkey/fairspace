@@ -4,7 +4,8 @@ import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import { getDb } from "@/db";
 import { menuItems, pageRevisions, pages } from "@/db/schema";
-import { getMenu, MenuError, pageHref, parseMenu } from "./menu";
+import { publicPath } from "@/puck/slug";
+import { getMenu, getMenuForEdit, MenuError, parseMenu } from "./menu";
 
 // "use cache" is a no-op outside Next; stub the cache APIs it calls.
 vi.mock("next/cache", () => ({ cacheLife: vi.fn(), cacheTag: vi.fn() }));
@@ -20,9 +21,9 @@ const run = crypto.randomUUID().slice(0, 8);
 const slugs: string[] = [];
 const doc = { root: { props: {} }, content: [] };
 
-async function insertPage(slug: string, published: boolean) {
+async function insertPage(slug: string, published: boolean, kind: "page" | "post" = "page") {
   slugs.push(slug);
-  const [page] = await getDb().insert(pages).values({ title: `Title ${slug}`, slug, draft: doc }).returning();
+  const [page] = await getDb().insert(pages).values({ kind, title: `Title ${slug}`, slug, draft: doc }).returning();
   if (published) {
     const [rev] = await getDb().insert(pageRevisions).values({ pageId: page.id, data: doc }).returning();
     await getDb().update(pages).set({ publishedRevisionId: rev.id }).where(eq(pages.id, page.id));
@@ -102,8 +103,16 @@ test("url-item-shown", async () => {
 
 // Pure: the `home` row is shared with src/app/admin/pages/actions.test.ts, which runs at the same time.
 test("home-page-links-to-root", () => {
-  expect(pageHref("home")).toBe("/");
-  expect(pageHref("about")).toBe("/about");
+  expect(publicPath("page", "home")).toBe("/");
+  expect(publicPath("page", "about")).toBe("/about");
+  expect(publicPath("post", "home")).toBe("/news/home");
+});
+
+test("menu-skips-posts", async () => {
+  const post = await insertPage(`post-${run}`, true, "post");
+  await store([item("Post", { pageId: post.id })]);
+  expect(await getMenu()).toEqual([]);
+  expect((await getMenuForEdit()).pages.map((p) => p.id)).not.toContain(post.id);
 });
 
 test("slug-change-followed", async () => {
