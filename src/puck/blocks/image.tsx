@@ -8,7 +8,7 @@ export const Image: ComponentConfig<ImageProps> = {
   label: "Image",
   fields: {
     image: mediaField("Image"),
-    caption: { type: "text", label: "Caption" },
+    caption: { type: "text", label: "Caption", metadata: { maxLength: 200 } },
   },
   defaultProps: { image: null, caption: "" },
   // No image, no block on the public page (same rule as Button): a caption alone is confusing.

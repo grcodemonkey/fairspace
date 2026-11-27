@@ -16,8 +16,8 @@ export const CardGrid: ComponentConfig<CardGridProps> = {
       max: 12,
       arrayFields: {
         image: mediaField("Image"),
-        title: { type: "text", label: "Title" },
-        text: { type: "textarea", label: "Text" },
+        title: { type: "text", label: "Title", metadata: { maxLength: 200 } },
+        text: { type: "textarea", label: "Text", metadata: { maxLength: 500 } },
         href: linkField("Link"),
       },
       defaultItemProps: { image: null, title: "", text: "", href: "" },

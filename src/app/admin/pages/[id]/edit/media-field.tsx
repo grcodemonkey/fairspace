@@ -11,12 +11,13 @@ export const RememberMediaContext = createContext<((item: MediaItem) => void) | 
 /** The editor's render for the `media` field type (see `mediaField` in puck/fields.ts). Register it in `overrides.fieldTypes`. */
 export function MediaFieldRender({ field, value, onChange, readOnly }: FieldProps<{ label?: string }, string | null>) {
   const remember = useContext(RememberMediaContext);
+  const choose = (item: MediaItem | null) => {
+    if (item) remember?.(item);
+    onChange(item?.id ?? null);
+  };
   return (
     <fieldset disabled={readOnly} className="contents">
-      <MediaPicker value={value ?? null} onChange={(item) => {
-          if (item) remember?.(item);
-          onChange(item?.id ?? null);
-        }} label={field.label} />
+      <MediaPicker value={value ?? null} onChange={choose} label={field.label} />
     </fieldset>
   );
 }

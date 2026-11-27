@@ -300,6 +300,14 @@ test("columns-disallow-media-layouts", () => {
   expect(() => parsePageData(page([inColumns(block("Image", { image: null, caption: "" }))]))).not.toThrow();
 });
 
+test("media-block-text-capped", () => {
+  const card = (title: string, text: string) => block("CardGrid", { cards: [{ image: null, title, text, href: "" }] });
+  expect(() => parsePageData(page([card("x".repeat(200), "y".repeat(500))]))).not.toThrow();
+  expect(() => parsePageData(page([card("x".repeat(201), "")]))).toThrow(/Card grid text field can be at most 200/);
+  expect(() => parsePageData(page([card("", "y".repeat(501))]))).toThrow(/at most 500/);
+  expect(() => parsePageData(page([block("Image", { image: null, caption: "x".repeat(201) })]))).toThrow(/Image text field can be at most 200/);
+});
+
 test("hero-background-media-id-checked", () => {
   expect(() => parsePageData(page([block("Hero", { title: "Hi", image: "x" })]))).toThrow(/Hero Background image must be a media file/);
 });
