@@ -159,6 +159,7 @@ export const siteSettings = pgTable(
     check("site_settings_single_row", sql`${s.id} = 1`),
     check("site_settings_primary_light_hex", sql`${s.primaryLight} ~ '^#[0-9a-f]{6}$'`),
     check("site_settings_primary_dark_hex", sql`${s.primaryDark} ~ '^#[0-9a-f]{6}$'`),
+    check("site_settings_default_description_length", sql`char_length(${s.defaultDescription}) <= 300`),
     check("site_settings_font", sql`${s.font} in ('geist', 'system', 'serif')`),
   ],
 );

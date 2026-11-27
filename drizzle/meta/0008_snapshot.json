@@ -1,5 +1,5 @@
 {
-  "id": "063d5003-18ff-4224-9235-6a117dce5f88",
+  "id": "6a056410-3b83-40de-9756-7fea53a3dd8a",
   "prevId": "358b268b-024d-4fc0-9039-cba51e8341f9",
   "version": "7",
   "dialect": "postgresql",
@@ -549,6 +549,10 @@
         "site_settings_primary_dark_hex": {
           "name": "site_settings_primary_dark_hex",
           "value": "\"site_settings\".\"primaryDark\" ~ '^#[0-9a-f]{6}$'"
+        },
+        "site_settings_default_description_length": {
+          "name": "site_settings_default_description_length",
+          "value": "char_length(\"site_settings\".\"defaultDescription\") <= 300"
         },
         "site_settings_font": {
           "name": "site_settings_font",

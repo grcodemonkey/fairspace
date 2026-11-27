@@ -9,11 +9,16 @@ export async function generateMetadata(): Promise<Metadata> {
   const { siteName, defaultDescription, defaultShareImage } = await getSiteSettings();
   return {
     title: { default: siteName, template: `%s · ${siteName}` },
-    // Pages with no description of their own (and the welcome page) show these.
+    // Used only when the page returns {} (the welcome page): page metadata replaces `description` and
+    // `openGraph` as a whole, so pageMetadata applies the same defaults itself.
     ...(defaultDescription && { description: defaultDescription }),
-    ...(defaultShareImage && {
-      openGraph: { images: [{ url: defaultShareImage.url, ...(defaultShareImage.alt && { alt: defaultShareImage.alt }) }] },
-    }),
+    openGraph: {
+      siteName,
+      ...(defaultDescription && { description: defaultDescription }),
+      ...(defaultShareImage && {
+        images: [{ url: defaultShareImage.url, ...(defaultShareImage.alt && { alt: defaultShareImage.alt }) }],
+      }),
+    },
   };
 }
 

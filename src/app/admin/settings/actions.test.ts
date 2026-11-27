@@ -2,11 +2,12 @@
 // Integration: real test database. The only test file that writes site_settings (one row), so no race.
 import { eq, inArray } from "drizzle-orm";
 import type { Session } from "next-auth";
-import { updateTag } from "next/cache";
+import { cacheTag, updateTag } from "next/cache";
 import { afterAll, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import { auth } from "@/auth";
 import { getDb } from "@/db";
 import { media, siteSettings, users } from "@/db/schema";
+import { mediaTag } from "@/media-library";
 import { getSiteSettings, SITE_SETTINGS_TAG } from "@/site-settings";
 import { deleteMediaAction } from "../media/actions";
 import { saveBrandAction, saveSeoAction } from "./actions";
@@ -119,6 +120,7 @@ test("brand-db-refuses-bad-values", async () => {
   await expect(getDb().insert(siteSettings).values({ primaryLight: "red;}" })).rejects.toThrow();
   await expect(getDb().insert(siteSettings).values({ font: "comic" })).rejects.toThrow();
   await expect(getDb().insert(siteSettings).values({ id: 2 })).rejects.toThrow();
+  await expect(getDb().insert(siteSettings).values({ defaultDescription: "x".repeat(301) })).rejects.toThrow();
 });
 
 test("defaults-when-unset", async () => {
@@ -176,6 +178,7 @@ test("seo-save-touches-only-its-columns", async () => {
     defaultDescription: seo.defaultDescription,
     defaultShareImage: { id: logo, url: `/media/${logo}.png`, alt: null },
   });
+  expect(cacheTag).toHaveBeenCalledWith(mediaTag(logo)); // an alt edit refreshes the cached default image
   // Clearing both stores null; the brand stays.
   await saveSeoAction({}, form({ defaultDescription: "", defaultShareImageId: "" }));
   expect((await rows())[0]).toMatchObject({ ...brand, defaultDescription: null, defaultShareImageId: null });

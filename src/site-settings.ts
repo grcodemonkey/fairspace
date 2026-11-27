@@ -6,6 +6,7 @@ import { BRAND_DEFAULTS, type FontKey, isFontKey, safeHex } from "@/brand";
 import { getDb } from "@/db";
 import { media, siteSettings } from "@/db/schema";
 import { mediaUrl } from "@/media";
+import { mediaTag } from "@/media-library";
 
 export const SITE_SETTINGS_TAG = "site-settings";
 
@@ -52,6 +53,8 @@ async function readSiteSettings(): Promise<SiteSettings> {
     )
     .where(eq(siteSettings.id, 1));
   if (!row) return DEFAULTS;
+  // An alt edit on the default share image must refresh the cached og:image:alt.
+  if (row.share) cacheTag(mediaTag(row.share.id));
   const s = row.settings;
   return {
     siteName: s.siteName || DEFAULTS.siteName,

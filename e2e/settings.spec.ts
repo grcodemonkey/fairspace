@@ -1,6 +1,8 @@
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import postgres from "postgres";
 import { BRAND_DEFAULTS } from "../src/brand";
+import { getStorage } from "../src/storage";
 import { signInAs as seedSession } from "./helpers";
 
 const sql = postgres(process.env.DATABASE_URL!, { max: 1 });
@@ -31,7 +33,9 @@ test.beforeAll(async () => {
 // Other specs expect the default brand: the test saves the defaults back, and the row goes here.
 test.afterAll(async () => {
   await sql`delete from site_settings`;
-  await sql`delete from media where filename = ${SHARE_FILE}`;
+  const files = await sql`delete from media where filename = ${SHARE_FILE} returning key`;
+  const { client, bucket } = getStorage();
+  for (const { key } of files) await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key })).catch(() => {});
   await sql`delete from pages where slug = ${slug}`;
   if (seeded.length) await sql`delete from users where id = any(${seeded})`;
   await sql.end();
