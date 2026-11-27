@@ -1,6 +1,7 @@
 import type { Config, Data, Field, Fields, SlotField } from "@puckeditor/core";
 import { UUID } from "@/media";
 import { pageConfig } from "./config";
+import { EMBED_HINT, type EmbedKind, parseEmbedUrl } from "./embed-providers";
 import { UNSAFE_HREF_HINT, isSafeHref } from "./safe-href";
 import { sanitizeRichText } from "./sanitize";
 
@@ -79,6 +80,10 @@ export function parsePageData(input: unknown, config: Config = pageConfig): Data
         if (field.metadata?.href && value !== "" && !isSafeHref(value)) {
           throw new PageDataError(`A ${name} link ${UNSAFE_HREF_HINT}.`);
         }
+        if (field.metadata?.embed && value !== "" && !parseEmbedUrl(value, field.metadata.embed as EmbedKind)) {
+          throw new PageDataError(`The ${field.label ?? "link"} ${EMBED_HINT[field.metadata.embed as EmbedKind]}.`);
+        }
+        if (field.metadata?.required && value.trim() === "") throw new PageDataError(`${label} is required.`);
         if (typeof field.metadata?.maxLength === "number" && value.length > field.metadata.maxLength) {
           throw new PageDataError(`A ${name} text field can be at most ${field.metadata.maxLength} characters.`);
         }

@@ -250,3 +250,28 @@ test("root-seo-props-kept", () => {
   const props = { title: "T", description: "D", socialImage: crypto.randomUUID(), noindex: false };
   expect(parsePageData(root({ ...props, junk: 1 })).root.props).toEqual(props);
 });
+
+test("rejects-unlisted-embed-url", () => {
+  for (const url of ["https://evil.example/watch?v=x", "https://www.youtube.com.evil.com/watch?v=aqz-KE-bpKQ", "javascript:alert(1)"]) {
+    expect(() => parsePageData(page([block("Video", { url, title: "Clip" })]))).toThrow(/YouTube or Vimeo/);
+    expect(() => parsePageData(page([inColumns(block("Embed", { url, title: "Form", height: 800 }))]))).toThrow(
+      /Google Forms/,
+    );
+  }
+});
+
+test("rejects-empty-video-title", () => {
+  expect(() => parsePageData(page([block("Video", { url: "https://youtu.be/aqz-KE-bpKQ", title: "  " })]))).toThrow(/required/);
+  expect(() => parsePageData(page([block("Embed", { url: "", title: "", height: 800 })]))).toThrow(/required/);
+});
+
+test("accepts-empty-embed-url", () => {
+  expect(() => parsePageData(page([block("Video", { url: "", title: "Video" })]))).not.toThrow();
+  expect(() => parsePageData(page([block("Embed", { url: "", title: "Form", height: 500 })]))).not.toThrow();
+});
+
+test("rejects-unsafe-donate-link-and-bad-height", () => {
+  const donate = block("Donate", { label: "Give", href: "javascript:alert(1)", text: "" });
+  expect(() => parsePageData(page([donate]))).toThrow(/must start with/);
+  expect(() => parsePageData(page([block("Embed", { url: "", title: "Form", height: 123 })]))).toThrow(/not in its list/);
+});

@@ -83,8 +83,12 @@ test("editor-shows-all-blocks", async ({ page, context, baseURL }) => {
     values (${crypto.randomUUID()}, 'All blocks', ${blocksSlug}, ${sql.json(JSON.parse(JSON.stringify(draft)))})
     returning id`;
 
-  await page.goto(`/admin/pages/${id}/edit`);
+  // The frame-src CSP must not block Puck's own preview iframe.
+  const response = await page.goto(`/admin/pages/${id}/edit`);
+  expect(response?.headers()["content-security-policy"]).toContain("frame-src 'self'");
   const preview = page.frameLocator("iframe").first();
+  await expect(preview.getByTitle("Our work in two minutes")).toHaveAttribute("src", /youtube-nocookie\.com\/embed\//);
+  await expect(preview.getByRole("link", { name: "Give now" })).toHaveAttribute("href", /paypal\.com\/donate/);
   await expect(preview.getByRole("heading", { level: 1, name: "Welcome to Fairspace" })).toBeVisible();
   await expect(preview.getByRole("heading", { level: 3, name: "Support us" })).toBeVisible();
   await expect(preview.getByRole("link", { name: "Donate" })).toHaveAttribute("href", "/donate");

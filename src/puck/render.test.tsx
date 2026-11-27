@@ -37,3 +37,34 @@ test("render-after-save-has-no-script", async () => {
   const html = await renderHtml(parsePageData(data));
   expect(html).not.toMatch(/<script|onerror|alert/i);
 });
+
+test("embeds-render-sandboxed", async () => {
+  const html = await renderHtml();
+  const video = html.match(/<iframe[^>]*youtube-nocookie\.com\/embed\/aqz-KE-bpKQ[^>]*>/)?.[0] ?? "";
+  expect(video).toContain('title="Our work in two minutes"');
+  expect(video).toContain('loading="lazy"');
+  expect(video).toContain('referrerPolicy="strict-origin-when-cross-origin"');
+  expect(video).toMatch(/sandbox="allow-scripts allow-same-origin [^"]*"/);
+  expect(video).not.toContain("allow-forms");
+  const form = html.match(/<iframe[^>]*docs\.google\.com\/forms\/[^>]*>/)?.[0] ?? "";
+  expect(form).toContain("viewform?embedded=true");
+  expect(form).toContain('title="Volunteer sign-up form"');
+  expect(form).toMatch(/sandbox="[^"]*allow-forms/);
+  expect(html).toMatch(/<a href="https:\/\/www.paypal.com\/donate\/\?hosted_button_id=EXAMPLE123"[^>]*>Give now<\/a>/);
+  expect(html).toContain("Gifts are processed by PayPal.");
+});
+
+test("stored-bad-embed-url-renders-no-iframe", async () => {
+  // Data that skipped parsePageData (old or hand-edited rows): the render check is the second wall.
+  const data = {
+    root: { props: {} },
+    content: [
+      { type: "Video", props: { id: "v", url: "https://youtube.com@evil.com/embed/aqz-KE-bpKQ", title: "x" } },
+      { type: "Embed", props: { id: "e", url: "javascript:alert(1)//docs.google.com", title: "x", height: 800 } },
+      { type: "Donate", props: { id: "d", label: "Give", href: "javascript:alert(1)", text: "" } },
+    ],
+  };
+  const html = await renderHtml(data);
+  expect(html).not.toContain("<iframe");
+  expect(html).not.toMatch(/javascript:|evil/);
+});
