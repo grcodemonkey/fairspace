@@ -8,6 +8,7 @@ import { getDb } from "@/db";
 import { pageRevisions, pages, users } from "@/db/schema";
 import { allBlocksFixture } from "@/puck/all-blocks.fixture";
 import { getPublishedPage, pageTag } from "@/puck/published";
+import { SITEMAP_TAG } from "@/sitemap";
 import { createPage, publishPage, restoreRevision, saveDraft, setPostDate, unpublishPage } from "./actions";
 
 vi.mock("@/auth", () => ({ auth: vi.fn() }));
@@ -258,6 +259,7 @@ test("publish-goes-live", async () => {
   expect(saved).toMatchObject({ publishedRevisionId: revision.id, draft: doc("Live title"), title: "Live title" });
   expect((await getPublishedPage(page.slug))?.data).toEqual(doc("Live title"));
   expect(updateTag).toHaveBeenCalledWith(pageTag(page.slug));
+  expect(updateTag).toHaveBeenCalledWith(SITEMAP_TAG);
 });
 
 test("publish-twice-keeps-both", async () => {
@@ -373,6 +375,7 @@ test("unpublish-takes-page-offline", async () => {
   expect(await getPublishedPage(page.slug)).toBeNull();
   expect(await revisionsOf(page.id)).toHaveLength(1);
   expect(updateTag).toHaveBeenCalledWith(pageTag(page.slug));
+  expect(updateTag).toHaveBeenCalledWith(SITEMAP_TAG);
 });
 
 test("unpublish-signed-out-redirects", async () => {
