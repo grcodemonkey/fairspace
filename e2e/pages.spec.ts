@@ -109,6 +109,11 @@ test("editor-warns-heading", async ({ page, context, baseURL }) => {
   await expect(page.getByRole("status").filter({ hasText: "Warning:" })).toContainText("2 main headings");
   await expect(page.getByRole("button", { name: "Publish" })).toBeEnabled();
 
+  // Dark color scheme: the warning stays visible (Puck's header stays light, so amber-900 keeps its contrast).
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect(page.getByRole("status").filter({ hasText: "Warning:" })).toBeVisible();
+  await page.emulateMedia({ colorScheme: "light" });
+
   // The fixture has one H1: no warning.
   await sql`update pages set draft = ${sql.json(JSON.parse(JSON.stringify(allBlocksFixture())))} where id = ${id}`;
   await page.goto(`/admin/pages/${id}/edit`);

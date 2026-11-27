@@ -18,12 +18,9 @@ export function h1Warning(data: Data, kind: "page" | "post"): string | null {
   const titleH1 = kind === "post" && typeof title === "string" && title.trim() ? 1 : 0;
   const total = blocks + titleH1;
   if (total === 1) return null;
-  if (kind === "post") {
-    return total === 0
-      ? "This post has no title. Add a Title in the page fields. It shows as the main heading."
-      : "The post title is the main heading (H1). Set Hero and Heading blocks to H2.";
-  }
-  return total === 0
-    ? "This page has no main heading (H1). Set one Hero or Heading block to H1."
-    : `This page has ${total} main headings (H1). Keep one, and set the others to H2.`;
+  if (titleH1) return "The post title is the main heading (H1). Set Hero and Heading blocks to H2.";
+  if (total > 1) return `This ${kind} has ${total} main headings (H1). Keep one, and set the others to H2.`;
+  return kind === "post"
+    ? "This post has no title. Add a Title in the page fields. It shows as the main heading."
+    : "This page has no main heading (H1). Set one Hero or Heading block to H1.";
 }

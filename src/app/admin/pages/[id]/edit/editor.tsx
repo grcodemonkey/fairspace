@@ -48,8 +48,7 @@ const usePuck = createUsePuck();
 
 // Replaces Puck's own "Publish" button. Both actions send the editor's current data.
 function EditorActions({ id, kind }: { id: string; kind: "page" | "post" }) {
-  const data = usePuck((s) => s.appState.data);
-  const warning = useMemo(() => h1Warning(data, kind), [data, kind]);
+  const warning = usePuck((s) => h1Warning(s.appState.data, kind));
   const getPuck = useGetPuck();
   const [status, setStatus] = useState("");
   const [pending, startTransition] = useTransition();
@@ -71,8 +70,8 @@ function EditorActions({ id, kind }: { id: string; kind: "page" | "post" }) {
 
   const button = "border rounded px-3 py-1 font-semibold whitespace-nowrap";
   return (
-    // The status sits on its own line under the buttons, so a long error never squeezes them.
-    <div className="flex flex-col items-end gap-1">
+    // The status sits on its own line under the buttons, so a long error never squeezes them (margin only when it has text).
+    <div className="flex flex-col items-end">
       <div className="flex items-center gap-3">
         <Link href={`/admin/pages/${id}/history`} className="underline">
           History
@@ -89,11 +88,11 @@ function EditorActions({ id, kind }: { id: string; kind: "page" | "post" }) {
           {pending && running === "publish" ? "Publishing…" : "Publish"}
         </button>
       </div>
-      <span role="status" aria-live="polite" className="max-w-md text-right text-sm empty:hidden">
+      <span role="status" aria-live="polite" className={`max-w-md text-right text-sm ${status ? "mt-1" : ""}`}>
         {status}
       </span>
-      {/* Always in the DOM so a screen reader announces a change. Advice only: it never blocks Save or Publish. */}
-      <p role="status" aria-live="polite" className="max-w-md text-right text-sm text-amber-900 empty:hidden">
+      {/* Always in the DOM (empty = zero height, no margin) so a screen reader announces a change. Advice only: it never blocks Save or Publish. */}
+      <p role="status" aria-live="polite" className={`max-w-md text-right text-sm text-amber-900 ${warning ? "mt-1" : ""}`}>
         {warning && (
           <>
             <strong>Warning:</strong> {warning}

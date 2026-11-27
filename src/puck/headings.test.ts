@@ -40,6 +40,13 @@ test("post-hero-h1-warns-extra", () => {
 test("post-blank-title-warns", () => {
   expect(h1Warning(doc([], "  "), "post")).toMatch(/no title/);
 });
+test("post-blank-title-two-h1-warns-count", () => {
+  expect(h1Warning(doc([hero(), heading("h1")], ""), "post")).toMatch(/This post has 2 main headings/);
+});
+test("post-blank-title-one-block-silent", () => {
+  // Matches what renders: no title h1, one block h1.
+  expect(h1Warning(doc([hero()], ""), "post")).toBeNull();
+});
 test("fixture-has-one-h1", () => {
   expect(h1Warning(allBlocksFixture(), "page")).toBeNull();
 });
