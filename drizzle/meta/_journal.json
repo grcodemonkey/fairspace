@@ -92,6 +92,13 @@
       "when": 1795743550977,
       "tag": "0012_news_index",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795748007650,
+      "tag": "0013_slug_redirects",
+      "breakpoints": true
     }
   ]
 }
