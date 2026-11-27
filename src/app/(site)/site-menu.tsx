@@ -22,7 +22,7 @@ export async function SiteMenu() {
               {/* Inline under md: the toggle sits after the link and the children break to full rows below. */}
               {item.children.length > 0 && (
                 <SubMenu className="group inline md:block" hrefs={item.children.map((child) => child.href)}>
-                  <summary className="inline-block cursor-pointer list-none px-1 py-2 [&::-webkit-details-marker]:hidden">
+                  <summary className="inline-block min-w-6 cursor-pointer list-none px-1 py-2 text-center [&::-webkit-details-marker]:hidden">
                     <span aria-hidden="true" className="inline-block group-open:rotate-180">
                       ▾
                     </span>
