@@ -21,7 +21,13 @@ export default function PagesPage() {
 async function PageList() {
   await requireUser();
   const rows = await getDb()
-    .select({ id: pages.id, title: pages.title, slug: pages.slug, updatedAt: pages.updatedAt })
+    .select({
+      id: pages.id,
+      title: pages.title,
+      slug: pages.slug,
+      updatedAt: pages.updatedAt,
+      publishedRevisionId: pages.publishedRevisionId,
+    })
     .from(pages)
     .orderBy(asc(pages.title));
 
@@ -35,7 +41,11 @@ async function PageList() {
             <tr>
               <th className="pr-8 py-1">Title</th>
               <th className="pr-8 py-1">Slug</th>
-              <th className="py-1">Updated</th>
+              <th className="pr-8 py-1">Status</th>
+              <th className="pr-8 py-1">Updated</th>
+              <th className="py-1">
+                <span className="sr-only">History</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -47,7 +57,13 @@ async function PageList() {
                   </Link>
                 </td>
                 <td className="pr-8 py-1">/{page.slug}</td>
-                <td className="py-1">{page.updatedAt.toISOString().slice(0, 16).replace("T", " ")} UTC</td>
+                <td className="pr-8 py-1">{page.publishedRevisionId ? "Live" : "Not published"}</td>
+                <td className="pr-8 py-1">{page.updatedAt.toISOString().slice(0, 16).replace("T", " ")} UTC</td>
+                <td className="py-1">
+                  <Link href={`/admin/pages/${page.id}/history`} className="underline">
+                    History
+                  </Link>
+                </td>
               </tr>
             ))}
           </tbody>

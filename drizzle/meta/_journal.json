@@ -43,6 +43,13 @@
       "when": 1795731519998,
       "tag": "0005_premium_the_twelve",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795733067098,
+      "tag": "0006_page_revision_same_page",
+      "breakpoints": true
     }
   ]
 }

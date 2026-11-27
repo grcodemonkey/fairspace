@@ -40,16 +40,17 @@ export async function getServableMedia(id: string) {
 }
 
 /**
- * Pages whose draft or any revision contains the media id: a restored revision (#12) must not lose its files.
+ * Pages whose draft or live version contains the media id. Old, unpublished revisions do not count: a restore
+ * of one that uses a deleted file shows no image there.
  * UUIDs are unique, so a text search of the Puck JSON finds a reference whatever the block shape.
  * position(), not like: no wildcard escaping.
  */
 export async function findMediaUsage(id: string): Promise<{ id: string; title: string }[]> {
-  // shortcut: full scan of draft and revision jsonb; fine for a small site, add a media-usage table if pages reach the thousands.
+  // shortcut: full scan of draft and live revision jsonb; fine for a small site, add a media-usage table if pages reach the thousands.
   const rows = await getDb().execute<{ id: string; title: string }>(sql`
     select p.id, p.title from pages p
-    where position(${id} in p.draft::text) > 0
-       or exists (select 1 from page_revisions r where r."pageId" = p.id and position(${id} in r.data::text) > 0)
+    left join page_revisions r on r.id = p."publishedRevisionId" and r."pageId" = p.id
+    where position(${id} in p.draft::text) > 0 or position(${id} in r.data::text) > 0
     order by p.title`);
   return [...rows];
 }
