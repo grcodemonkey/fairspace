@@ -14,8 +14,9 @@ const youtube: Provider = {
       url.hostname === "youtu.be"
         ? url.pathname.match(/^\/([^/]+)$/)
         : url.pathname.match(/^\/(?:embed|shorts)\/([^/]+)$/);
-    const id = path?.[1] ?? (url.pathname === "/watch" && url.hostname !== "youtu.be" ? url.searchParams.get("v") : null);
-    return id && YOUTUBE_ID.test(id) ? `https://www.youtube-nocookie.com/embed/${id}` : null;
+    const id = path?.[1] ?? (url.pathname === "/watch" ? url.searchParams.get("v") : null);
+    // "videoseries" is a playlist path, not a video id, and it is 11 characters long.
+    return id && id !== "videoseries" && YOUTUBE_ID.test(id) ? `https://www.youtube-nocookie.com/embed/${id}` : null;
   },
 };
 
@@ -48,7 +49,8 @@ const donorbox: Provider = {
   kind: "embed",
   hosts: ["donorbox.org", "www.donorbox.org"],
   toSrc: (url) => {
-    const slug = url.pathname.match(/^\/(?:embed\/)?([A-Za-z0-9_-]{1,100})$/)?.[1];
+    // Only the documented embed link: a bare donorbox.org/<path> can be any site page (/login, /pricing).
+    const slug = url.pathname.match(/^\/embed\/([A-Za-z0-9_-]{1,100})$/)?.[1];
     return slug ? `https://donorbox.org/embed/${slug}` : null;
   },
 };
@@ -66,7 +68,7 @@ export const EMBED_FRAME_ORIGINS = [
 export const EMBED_HINT: Record<EmbedKind, string> = {
   video: "must be a YouTube or Vimeo video link (https://)",
   embed:
-    "must be a Google Forms link (https://docs.google.com/forms/d/e/…/viewform) or a Donorbox campaign link (https://donorbox.org/…)",
+    "must be a Google Forms link (https://docs.google.com/forms/d/e/…/viewform) or a Donorbox embed link (https://donorbox.org/embed/…)",
 };
 
 /**

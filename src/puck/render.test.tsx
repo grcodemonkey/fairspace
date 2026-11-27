@@ -50,6 +50,7 @@ test("embeds-render-sandboxed", async () => {
   expect(form).toContain("viewform?embedded=true");
   expect(form).toContain('title="Volunteer sign-up form"');
   expect(form).toMatch(/sandbox="[^"]*allow-forms/);
+  expect(form).not.toMatch(/payment|allow-top-navigation/);
   expect(html).toMatch(/<a href="https:\/\/www.paypal.com\/donate\/\?hosted_button_id=EXAMPLE123"[^>]*>Give now<\/a>/);
   expect(html).toContain("Gifts are processed by PayPal.");
 });

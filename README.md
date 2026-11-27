@@ -64,7 +64,7 @@ Blocks: Hero, Heading, Rich text, Button, Columns (2–4 columns that stack on m
 Video, Embed and Donate take a page link. Editors never paste embed code or HTML.
 
 - **Video**: a YouTube or Vimeo video link. It plays from `youtube-nocookie.com` or with Vimeo's "do not track" option. The title is required; screen readers read it.
-- **Embed**: a Google Forms link (`https://docs.google.com/forms/d/e/…/viewform`) or a Donorbox campaign link (`https://donorbox.org/…`). `forms.gle` short links do not work: open the form and copy the full link.
+- **Embed**: a Google Forms link (`https://docs.google.com/forms/d/e/…/viewform`) or a Donorbox embed link (`https://donorbox.org/embed/…`, from the campaign's "Embed Code" in Donorbox). `forms.gle` short links do not work: open the form and copy the full link.
 - **Donate**: a button that links to any donation page, for example Givebutter, Donorbox or PayPal (`https://www.paypal.com/donate/?hosted_button_id=…`). PayPal pages cannot show inside a frame, and Givebutter offers only a script widget (no frame link), so use Donate for them.
 
 Video and Embed frames are sandboxed and load only when a visitor scrolls near them. The site sends a `Content-Security-Policy: frame-src` header that allows frames only from these sites. To add a site, change `src/puck/embed-providers.ts`.

@@ -1,10 +1,10 @@
 import { expect, test } from "vitest";
-import { parseEmbedUrl } from "./embed-providers";
+import { EMBED_FRAME_ORIGINS, type EmbedKind, parseEmbedUrl } from "./embed-providers";
 
 const YT = "https://www.youtube-nocookie.com/embed/aqz-KE-bpKQ";
 const FORM = "1FAIpQLSfD7mPwX9Xl2D5oZ8h3bQ0wZzq1";
 
-test.each([
+const VIDEO_OK = [
   ["https://www.youtube.com/watch?v=aqz-KE-bpKQ", YT],
   ["https://youtube.com/watch?v=aqz-KE-bpKQ&t=30s", YT],
   ["https://m.youtube.com/watch?v=aqz-KE-bpKQ", YT],
@@ -17,18 +17,28 @@ test.each([
   ["https://vimeo.com/76979871/abc123", "https://player.vimeo.com/video/76979871?dnt=1&h=abc123"],
   ["https://player.vimeo.com/video/76979871", "https://player.vimeo.com/video/76979871?dnt=1"],
   ["https://player.vimeo.com/video/76979871?h=abc123", "https://player.vimeo.com/video/76979871?dnt=1&h=abc123"],
-])("video accepts %s", (url, src) => {
+];
+
+const EMBED_OK = [
+  [`https://docs.google.com/forms/d/e/${FORM}/viewform`, `https://docs.google.com/forms/d/e/${FORM}/viewform?embedded=true`],
+  [`https://docs.google.com/forms/d/e/${FORM}/viewform?usp=sf_link`, `https://docs.google.com/forms/d/e/${FORM}/viewform?embedded=true`],
+  ["https://donorbox.org/embed/save-the-park", "https://donorbox.org/embed/save-the-park"],
+  ["https://www.donorbox.org/embed/save-the-park", "https://donorbox.org/embed/save-the-park"],
+];
+
+test.each(VIDEO_OK)("video accepts %s", (url, src) => {
   expect(parseEmbedUrl(url, "video")).toBe(src);
 });
 
-test.each([
-  [`https://docs.google.com/forms/d/e/${FORM}/viewform`, `https://docs.google.com/forms/d/e/${FORM}/viewform?embedded=true`],
-  [`https://docs.google.com/forms/d/e/${FORM}/viewform?usp=sf_link`, `https://docs.google.com/forms/d/e/${FORM}/viewform?embedded=true`],
-  ["https://donorbox.org/save-the-park", "https://donorbox.org/embed/save-the-park"],
-  ["https://donorbox.org/embed/save-the-park", "https://donorbox.org/embed/save-the-park"],
-  ["https://www.donorbox.org/save-the-park", "https://donorbox.org/embed/save-the-park"],
-])("embed accepts %s", (url, src) => {
+test.each(EMBED_OK)("embed accepts %s", (url, src) => {
   expect(parseEmbedUrl(url, "embed")).toBe(src);
+});
+
+test("every-src-origin-is-in-the-csp", () => {
+  const cases: [EmbedKind, string[][]][] = [["video", VIDEO_OK], ["embed", EMBED_OK]];
+  for (const [kind, rows] of cases) {
+    for (const [url] of rows) expect(EMBED_FRAME_ORIGINS).toContain(new URL(parseEmbedUrl(url, kind)!).origin);
+  }
 });
 
 test.each([
@@ -47,6 +57,7 @@ test.each([
   "https://www.youtube.com/embed/aqz-KE-bpKQ/extra", // extra path segment
   "https://youtu.be/watch?v=aqz-KE-bpKQ",
   "https://www.youtube.com/playlist?list=PL123",
+  "https://www.youtube.com/embed/videoseries?list=PL123", // playlist, 11 chars like an id
   "https://vimeo.com/abc", // non-numeric id
   "https://vimeo.com/76979871/XYZ", // hash not lowercase hex
   "https://player.vimeo.com/video/76979871?h=%3Cscript%3E",
@@ -66,10 +77,13 @@ test.each([
   `https://docs.google.com/forms/d/e/${FORM}/viewform/extra`,
   `https://docs.google.com.evil.com/forms/d/e/${FORM}/viewform`,
   `https://docs.google.com/document/d/${FORM}/edit`,
-  "https://donorbox.org/a/b",
+  "https://donorbox.org/save-the-park", // bare slug: only the documented /embed/ link
+  "https://donorbox.org/login",
+  "https://donorbox.org/pricing",
+  "https://donorbox.org/embed/a/b",
   "https://donorbox.org/embed/save%2Fthe-park",
-  "https://donorbox.org.evil.com/save-the-park",
-  "http://donorbox.org/save-the-park",
+  "https://donorbox.org.evil.com/embed/save-the-park",
+  "http://donorbox.org/embed/save-the-park",
   "https://givebutter.com/save-the-park", // script widget only: use the Donate block
   "https://www.paypal.com/donate/?hosted_button_id=ABC",
   "https://www.youtube.com/watch?v=aqz-KE-bpKQ", // video kind only
