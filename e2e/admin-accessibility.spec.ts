@@ -135,6 +135,8 @@ for (const colorScheme of ["light", "dark"] as const) {
     const ours = () => new AxeBuilder({ page }).include("[data-fairspace]");
     await page.goto(`/admin/pages/${pageId}/edit`);
     await expect(page.getByRole("button", { name: "Save draft" })).toBeVisible();
+    // The seeded page has no H1, so the heading warning (#54) is in the scan too.
+    await expect(page.locator("[data-fairspace]").getByText("Warning:")).toBeVisible();
     await page.waitForLoadState("networkidle");
     await expectNoViolations(ours(), testInfo, `editor-${colorScheme}`);
     await page.getByRole("button", { name: "Choose media" }).click(); // the page's share image
