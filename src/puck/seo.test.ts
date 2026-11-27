@@ -1,7 +1,11 @@
 import { expect, test } from "vitest";
 import { pageMetadata } from "./seo";
 
-const base = { slug: "about", image: null, siteUrl: "https://example.org" };
+const base = { slug: "about", image: null, siteUrl: "https://example.org", siteName: "Riverside" };
+
+test("og-title-plain-with-site-name", () => {
+  expect(pageMetadata({ ...base, props: { title: "About" } }).openGraph).toMatchObject({ title: "About", siteName: "Riverside" });
+});
 
 test("home-canonical-is-root", () => {
   expect(pageMetadata({ ...base, slug: "home", props: {} }).alternates?.canonical).toBe("/");

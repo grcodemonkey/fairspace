@@ -50,7 +50,8 @@ async function readSiteSettings(): Promise<SiteSettings> {
   };
 }
 
-type Editable = Partial<Pick<typeof siteSettings.$inferInsert, "siteName" | "logoMediaId" | "primaryLight" | "primaryDark" | "font">>;
+// Every settings column: a new column (#16, #20) is editable with no change here.
+type Editable = Partial<Omit<typeof siteSettings.$inferInsert, "id" | "updatedAt" | "updatedBy">>;
 
 /** Writes only the given columns, so each settings section saves without overwriting the others. Server actions only. */
 export async function saveSiteSettings(values: Editable, userId: string) {

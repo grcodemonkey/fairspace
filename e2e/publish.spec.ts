@@ -1,5 +1,6 @@
 import { type Browser, expect, type Page, test } from "@playwright/test";
 import postgres from "postgres";
+import { BRAND_DEFAULTS } from "../src/brand";
 import { signInAs } from "./helpers";
 
 // One page goes through publish, history, restore and unpublish, so the tests run in order.
@@ -46,13 +47,13 @@ test("editor-publishes-live", async ({ browser, baseURL }) => {
   await page.goto(editUrl);
   await publish(page, first);
   await page.goto(`/${slug}`);
-  await expect(page).toHaveTitle(`${first} · Fairspace`);
+  await expect(page).toHaveTitle(`${first} · ${BRAND_DEFAULTS.siteName}`);
 
   // The second publish shows with no restart: updateTag expired the cached page.
   await page.goto(editUrl);
   await publish(page, second);
   await page.goto(`/${slug}`);
-  await expect(page).toHaveTitle(`${second} · Fairspace`);
+  await expect(page).toHaveTitle(`${second} · ${BRAND_DEFAULTS.siteName}`);
   await page.context().close();
 });
 
@@ -74,7 +75,7 @@ test("admin-restores", async ({ browser, baseURL }) => {
   await expect(page.locator("tbody tr")).toHaveCount(3);
   await expect(page.getByText("Restored", { exact: true })).toBeVisible();
   await page.goto(`/${slug}`);
-  await expect(page).toHaveTitle(`${first} · Fairspace`);
+  await expect(page).toHaveTitle(`${first} · ${BRAND_DEFAULTS.siteName}`);
   await page.context().close();
 });
 

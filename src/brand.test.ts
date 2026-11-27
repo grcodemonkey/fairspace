@@ -11,9 +11,9 @@ test("contrast-known-ratios", () => {
 });
 
 test("on-color-always-passes", () => {
-  for (let v = 0; v <= 255; v += 5) {
-    const gray = `#${v.toString(16).padStart(2, "0").repeat(3)}`;
-    expect(contrastRatio(gray, onColor(gray))).toBeGreaterThanOrEqual(MIN_CONTRAST);
+  const grays = Array.from({ length: 52 }, (_, i) => `#${(i * 5).toString(16).padStart(2, "0").repeat(3)}`);
+  for (const color of [...grays, "#ff0000", "#00ff00", "#0000ff", "#767676"]) {
+    expect(contrastRatio(color, onColor(color))).toBeGreaterThanOrEqual(MIN_CONTRAST);
   }
   expect(onColor("#1d4ed8")).toBe("#ffffff");
   expect(onColor("#60a5fa")).toBe("#000000");

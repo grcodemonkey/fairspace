@@ -1,5 +1,6 @@
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 import postgres from "postgres";
+import { BRAND_DEFAULTS } from "../src/brand";
 import { signInAs as seedSession } from "./helpers";
 
 const sql = postgres(process.env.DATABASE_URL!, { max: 1 });
@@ -47,7 +48,7 @@ const primaryOf = (page: Page) =>
 test("brand-save-updates-public-pages", async ({ page, context, baseURL }) => {
   for (const path of ["/", `/${slug}`]) {
     await page.goto(path);
-    await expect(page.getByRole("banner").getByRole("link", { name: "Fairspace" })).toBeVisible();
+    await expect(page.getByRole("banner").getByRole("link", { name: BRAND_DEFAULTS.siteName })).toBeVisible();
   }
 
   await signInAs(context, baseURL!, "admin");
@@ -73,9 +74,10 @@ test("brand-save-updates-public-pages", async ({ page, context, baseURL }) => {
   expect(await primaryOf(page)).toBe("#34d399");
   await page.emulateMedia({ colorScheme: "light" });
 
-  await saveBrand(page, { name: "Fairspace", light: "#1d4ed8", dark: "#60a5fa", font: "geist" });
+  const { siteName, primaryLight, primaryDark, font } = BRAND_DEFAULTS;
+  await saveBrand(page, { name: siteName, light: primaryLight, dark: primaryDark, font });
   await page.goto("/");
-  expect(await primaryOf(page)).toBe("#1d4ed8");
+  expect(await primaryOf(page)).toBe(primaryLight);
 });
 
 // The guard runs inside Suspense after the stream starts, so the status stays 200: assert the text.
