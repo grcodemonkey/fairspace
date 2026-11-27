@@ -1,5 +1,8 @@
 import type { Data } from "@puckeditor/core";
 
+/** The media id the fixture's image blocks use. A check that wants the images to show must insert a media row with it. */
+export const FIXTURE_MEDIA_ID = "0f1e2d3c-4b5a-4968-8778-695a4b3c2d1e";
+
 /** One page that uses every block. For unit tests, the e2e seed, and the render (#11) and axe (#17) checks. */
 export const allBlocksFixture = (): Data => ({
   root: { props: { title: "All blocks" } },
@@ -40,6 +43,30 @@ export const allBlocksFixture = (): Data => ({
               { type: "Button", props: { id: "button-2", label: "Donate", href: "/donate", variant: "primary" } },
             ],
           },
+        ],
+      },
+    },
+    { type: "Image", props: { id: "image-1", image: FIXTURE_MEDIA_ID, caption: "Our bike repair day." } },
+    {
+      type: "ImageText",
+      props: {
+        id: "image-text-1",
+        image: FIXTURE_MEDIA_ID,
+        imageSide: "right",
+        content: [
+          { type: "Heading", props: { id: "heading-4", text: "Our garden", level: "h2", align: "left" } },
+          { type: "RichText", props: { id: "rich-text-3", body: "<p>Thirty raised beds for the neighborhood.</p>" } },
+        ],
+      },
+    },
+    {
+      type: "CardGrid",
+      props: {
+        id: "card-grid-1",
+        cards: [
+          { image: FIXTURE_MEDIA_ID, title: "Market", text: "Saturdays, 9 to 1.", href: "/market" },
+          { image: FIXTURE_MEDIA_ID, title: "Bike kitchen", text: "Fix your bike with our tools.", href: "" },
+          { image: null, title: "Volunteer", text: "Help us run the center.", href: "/volunteer" },
         ],
       },
     },

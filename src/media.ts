@@ -56,3 +56,9 @@ export const isImage = (contentType: string) => contentType.startsWith("image/")
 /** The public URL of a finished upload. The one place that builds it (the serve route parses it back). */
 export const mediaUrl = (row: { id: string; contentType: string }) =>
   `/media/${row.id}.${ALLOWED_TYPES[row.contentType as AllowedType]}`;
+
+/** What a page needs to render a library image. `alt`: null = not set (renders ""). */
+export type MediaMeta = { url: string; alt: string | null };
+
+/** Media id → meta, handed to blocks as Puck `metadata.media`. An id not in the map renders no image. */
+export type MediaMap = Record<string, MediaMeta>;

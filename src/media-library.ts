@@ -4,7 +4,8 @@ import { and, desc, eq, isNotNull, isNull, like, lt, sql } from "drizzle-orm";
 import { cacheLife, cacheTag } from "next/cache";
 import { getDb } from "@/db";
 import { media } from "@/db/schema";
-import { mediaUrl, UUID } from "@/media";
+import type { Data } from "@puckeditor/core";
+import { type MediaMap, type MediaMeta, mediaUrl, UUID } from "@/media";
 import { getStorage } from "@/storage";
 
 const HOUR = 60 * 60 * 1000;
@@ -35,7 +36,7 @@ export async function listMedia({ imagesOnly = false } = {}) {
 export const mediaTag = (id: string) => `media:${id}`;
 
 /** URL and alt of a finished image, or null (unknown id, pending, or not an image). Cached: public metadata is a static prerender. */
-export async function getMediaMeta(id: string): Promise<{ url: string; alt: string | null } | null> {
+export async function getMediaMeta(id: string): Promise<MediaMeta | null> {
   "use cache";
   cacheLife("max");
   cacheTag(mediaTag(id));
@@ -44,6 +45,18 @@ export async function getMediaMeta(id: string): Promise<{ url: string; alt: stri
     .from(media)
     .where(and(eq(media.id, id), isNotNull(media.uploadedAt), like(media.contentType, "image/%")));
   return row ? { url: mediaUrl(row), alt: row.alt } : null;
+}
+
+/**
+ * The media map for `<Render metadata={{ media }}>`: every media id in the page JSON → URL and alt.
+ * UUIDs are unique, so a text search of the Puck JSON finds every media field whatever the block shape;
+ * only string values that are exactly a UUID match (block ids like `Hero-<uuid>` do not).
+ * Calls only the cached getMediaMeta: an uncached query here breaks the public static prerender.
+ */
+export async function resolvePageMedia(data: Data): Promise<MediaMap> {
+  const ids = new Set(Array.from(JSON.stringify(data).matchAll(new RegExp(`"(${UUID})"`, "g")), (m) => m[1]));
+  const metas = await Promise.all([...ids].map(async (id) => [id, await getMediaMeta(id)] as const));
+  return Object.fromEntries(metas.filter((entry): entry is [string, MediaMeta] => entry[1] !== null));
 }
 
 /** A finished upload, or undefined when it is missing or still pending. */

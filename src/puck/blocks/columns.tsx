@@ -10,7 +10,7 @@ export const Columns: ComponentConfig<ColumnsProps> = {
       label: "Columns",
       min: 2,
       max: 4,
-      arrayFields: { content: { type: "slot", disallow: ["Columns", "Hero"] } },
+      arrayFields: { content: { type: "slot", disallow: ["Columns", "Hero", "ImageText", "CardGrid"] } },
       defaultItemProps: { content: [] },
       getItemSummary: (_item, index) => `Column ${(index ?? 0) + 1}`,
     },

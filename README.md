@@ -59,7 +59,9 @@ A published page shows at `/<slug>`. The page with slug `home` shows at `/`, and
 
 Search and sharing: in the editor's page fields, set a Description (at most 300 characters; about 160 shows in search results), a Social image (from the media library) and "Hide from search engines". They fill the `description`, canonical, `og:*` and `twitter:*` tags on the published page. "Hide" adds `robots: noindex`. Pages are prerendered, so set `AUTH_URL` at build time and at run time: the canonical and `og:image` URLs are fixed at build. A page with no social image has no `og:image`.
 
-Blocks: Hero, Heading, Rich text, Button, Columns (2–4 columns that stack on mobile), Video, Embed and Donate. The server checks every block value on save, publish and restore. Links must start with `https://`, `http://`, `mailto:`, `tel:`, `/` or `#`; rich text is cleaned to a short list of safe tags.
+Blocks: Hero (with an optional background image under a dark overlay), Heading, Rich text, Button, Image (with an optional caption), Image + text (the image stacks over the text on mobile), Card grid (1–12 cards with an image, title, text and link), Columns (2–4 columns that stack on mobile), Video, Embed and Donate. The server checks every block value on save, publish and restore. Links must start with `https://`, `http://`, `mailto:`, `tel:`, `/` or `#`; rich text is cleaned to a short list of safe tags.
+
+Images take their alt text from the media library when the page renders; a hero background is decorative and gets an empty alt. If an image is deleted, the block shows no image.
 
 Video, Embed and Donate take a page link. Editors never paste embed code or HTML.
 

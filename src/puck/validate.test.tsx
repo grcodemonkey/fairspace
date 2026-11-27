@@ -275,3 +275,31 @@ test("rejects-unsafe-donate-link-and-bad-height", () => {
   expect(() => parsePageData(page([donate]))).toThrow(/must start with/);
   expect(() => parsePageData(page([block("Embed", { url: "", title: "Form", height: 123 })]))).toThrow(/not in its list/);
 });
+
+// --- #14 media blocks ---
+
+const cardGrid = (image: unknown) =>
+  block("CardGrid", { cards: [{ image, title: "T", text: "", href: "" }, { image: null, title: "U", text: "", href: "" }] });
+
+test("card-media-id-checked", () => {
+  expect(() => parsePageData(page([cardGrid("not-a-uuid")]))).toThrow(/Card grid Image must be a media file/);
+  expect(() => parsePageData(page([cardGrid(crypto.randomUUID().toUpperCase())]))).toThrow(PageDataError);
+  const id = crypto.randomUUID();
+  const cards = parsePageData(page([cardGrid(id)])).content[0].props.cards as { image: unknown }[];
+  expect(cards.map((c) => c.image)).toEqual([id, null]);
+});
+
+test("image-text-slot-allow", () => {
+  const imageText = (...content: unknown[]) => block("ImageText", { image: null, imageSide: "left", content });
+  expect(() => parsePageData(page([imageText(richText("<p>x</p>"), button("/"))]))).not.toThrow();
+  expect(() => parsePageData(page([imageText(inColumns())]))).toThrow(/Columns block is not allowed inside a Image \+ text/);
+});
+
+test("columns-disallow-media-layouts", () => {
+  expect(() => parsePageData(page([inColumns(cardGrid(null))]))).toThrow(/Card grid block is not allowed/);
+  expect(() => parsePageData(page([inColumns(block("Image", { image: null, caption: "" }))]))).not.toThrow();
+});
+
+test("hero-background-media-id-checked", () => {
+  expect(() => parsePageData(page([block("Hero", { title: "Hi", image: "x" })]))).toThrow(/Hero Background image must be a media file/);
+});
