@@ -7,6 +7,7 @@ const sql = postgres(process.env.DATABASE_URL!, { max: 1 });
 const slug = `e2e-page-${crypto.randomUUID().slice(0, 8)}`;
 const blocksSlug = `${slug}-blocks`;
 const seoSlug = `${slug}-seo`;
+const h1Slug = `${slug}-h1`;
 const userIds: string[] = [];
 // Smallest valid PNG (1×1, transparent).
 const PNG = Buffer.from(
@@ -17,7 +18,7 @@ const signInAsEditor = async (context: BrowserContext, baseURL: string) =>
   userIds.push((await signInAs(sql, context, baseURL, "editor")).id);
 
 test.afterAll(async () => {
-  await sql`delete from pages where slug in ${sql([slug, blocksSlug, seoSlug])}`;
+  await sql`delete from pages where slug in ${sql([slug, blocksSlug, seoSlug, h1Slug])}`;
   if (userIds.length) await sql`delete from media where "uploadedBy" in ${sql(userIds)}`;
   if (userIds.length) await sql`delete from users where id in ${sql(userIds)}`; // the cascade removes the sessions
   await sql.end();
@@ -93,6 +94,31 @@ test("editor-shows-all-blocks", async ({ page, context, baseURL }) => {
   await expect(preview.getByRole("heading", { level: 3, name: "Support us" })).toBeVisible();
   await expect(preview.getByRole("link", { name: "Donate" })).toHaveAttribute("href", "/donate");
   await expect(preview.getByText("weekly events")).toBeVisible();
+});
+
+test("editor-warns-heading", async ({ page, context, baseURL }) => {
+  await signInAsEditor(context, baseURL!);
+  const hero = (id: string) => ({ type: "Hero", props: { id, title: id, level: "h1" } });
+  const draft = { root: { props: { title: "Two H1" } }, content: [hero("hero-a"), hero("hero-b")] };
+  const [{ id }] = await sql`
+    insert into pages (id, title, slug, draft)
+    values (${crypto.randomUUID()}, 'Two H1', ${h1Slug}, ${sql.json(draft)})
+    returning id`;
+
+  await page.goto(`/admin/pages/${id}/edit`);
+  await expect(page.getByRole("status").filter({ hasText: "Warning:" })).toContainText("2 main headings");
+  await expect(page.getByRole("button", { name: "Publish" })).toBeEnabled();
+
+  // Dark color scheme: the warning stays visible (Puck's header stays light, so amber-900 keeps its contrast).
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect(page.getByRole("status").filter({ hasText: "Warning:" })).toBeVisible();
+  await page.emulateMedia({ colorScheme: "light" });
+
+  // The fixture has one H1: no warning.
+  await sql`update pages set draft = ${sql.json(JSON.parse(JSON.stringify(allBlocksFixture())))} where id = ${id}`;
+  await page.goto(`/admin/pages/${id}/edit`);
+  await expect(page.getByRole("button", { name: "Publish" })).toBeVisible();
+  await expect(page.getByText("Warning:")).toHaveCount(0);
 });
 
 test("signed-out-redirected", async ({ page }) => {
