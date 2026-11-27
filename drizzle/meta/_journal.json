@@ -57,6 +57,13 @@
       "when": 1795738463223,
       "tag": "0007_site_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795739833603,
+      "tag": "0008_seo_site_defaults",
+      "breakpoints": true
     }
   ]
 }

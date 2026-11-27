@@ -3,9 +3,12 @@
 import { refresh } from "next/cache";
 import { contrastRatio, DARK_BG, HEX, isFontKey, LIGHT_BG, MIN_CONTRAST, SITE_NAME_MAX } from "@/brand";
 import { requireAdmin } from "@/guards";
-import { isImage } from "@/media";
+import { isImage, UUID } from "@/media";
 import { getServableMedia } from "@/media-library";
+import { SEO_DESCRIPTION_MAX } from "@/puck/seo";
 import { saveSiteSettings } from "@/site-settings";
+
+const UUID_FORMAT = new RegExp(`^${UUID}$`);
 
 export type ActionState = { error?: string; message?: string };
 
@@ -50,6 +53,28 @@ export async function saveBrandAction(_: ActionState, formData: FormData): Promi
   }
 
   await saveSiteSettings({ siteName, logoMediaId: logoId || null, ...values, font }, user.id!);
+  refresh();
+  return { message: "Saved." };
+}
+
+/** Admins only. The default description has the page cap; the share image must be a finished image (a bad id is refused, not stored). */
+export async function saveSeoAction(_: ActionState, formData: FormData): Promise<ActionState> {
+  const user = await requireAdmin();
+
+  const defaultDescription = text(formData, "defaultDescription");
+  if (defaultDescription.length > SEO_DESCRIPTION_MAX) {
+    return { error: `The default description can be at most ${SEO_DESCRIPTION_MAX} characters.` };
+  }
+
+  const imageId = text(formData, "defaultShareImageId");
+  if (imageId) {
+    const file = UUID_FORMAT.test(imageId) ? await getServableMedia(imageId) : undefined;
+    if (!file || !isImage(file.contentType)) {
+      return { error: "The default share image must be an image from the media library." };
+    }
+  }
+
+  await saveSiteSettings({ defaultDescription: defaultDescription || null, defaultShareImageId: imageId || null }, user.id!);
   refresh();
   return { message: "Saved." };
 }

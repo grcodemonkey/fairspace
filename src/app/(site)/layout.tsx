@@ -6,8 +6,20 @@ import { BRAND_DEFAULTS, FONTS, onColor, safeHex } from "@/brand";
 import { getSiteSettings } from "@/site-settings";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { siteName } = await getSiteSettings();
-  return { title: { default: siteName, template: `%s · ${siteName}` } };
+  const { siteName, defaultDescription, defaultShareImage } = await getSiteSettings();
+  return {
+    title: { default: siteName, template: `%s · ${siteName}` },
+    // Used only when the page returns {} (the welcome page): page metadata replaces `description` and
+    // `openGraph` as a whole, so pageMetadata applies the same defaults itself.
+    ...(defaultDescription && { description: defaultDescription }),
+    openGraph: {
+      siteName,
+      ...(defaultDescription && { description: defaultDescription }),
+      ...(defaultShareImage && {
+        images: [{ url: defaultShareImage.url, ...(defaultShareImage.alt && { alt: defaultShareImage.alt }) }],
+      }),
+    },
+  };
 }
 
 // The public theme shell. #19 menu renders here.

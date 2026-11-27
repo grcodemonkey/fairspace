@@ -148,6 +148,9 @@ export const siteSettings = pgTable(
     primaryLight: text("primaryLight"),
     primaryDark: text("primaryDark"),
     font: text("font"),
+    // #16 search and sharing defaults. The media delete action refuses the file; the FK is only the safety net.
+    defaultDescription: text("defaultDescription"),
+    defaultShareImageId: text("defaultShareImageId").references(() => media.id, { onDelete: "set null" }),
     updatedAt: timestamp("updatedAt", { mode: "date", withTimezone: true }).notNull().defaultNow(),
     updatedBy: text("updatedBy").references(() => users.id, { onDelete: "set null" }),
   },
@@ -156,6 +159,7 @@ export const siteSettings = pgTable(
     check("site_settings_single_row", sql`${s.id} = 1`),
     check("site_settings_primary_light_hex", sql`${s.primaryLight} ~ '^#[0-9a-f]{6}$'`),
     check("site_settings_primary_dark_hex", sql`${s.primaryDark} ~ '^#[0-9a-f]{6}$'`),
+    check("site_settings_default_description_length", sql`char_length(${s.defaultDescription}) <= 300`),
     check("site_settings_font", sql`${s.font} in ('geist', 'system', 'serif')`),
   ],
 );

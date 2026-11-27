@@ -34,7 +34,7 @@ export function BrandForm({ settings }: { settings: SiteSettings }) {
   );
 
   return (
-    <form action={action} className="flex flex-col gap-5 items-start max-w-xl">
+    <form action={action} id="brand" className="flex flex-col gap-5 items-start max-w-xl">
       <h2 className="text-xl font-bold">Brand</h2>
       <div className="flex flex-col gap-1">
         <label htmlFor="siteName">Site name</label>

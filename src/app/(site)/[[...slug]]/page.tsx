@@ -31,11 +31,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // The published root props only: pages.title follows the draft.
   const props = data.root.props as Record<string, unknown> | undefined;
   const socialImage = props?.socialImage;
+  const settings = await getSiteSettings();
   return pageMetadata({
     props,
     slug,
-    image: typeof socialImage === "string" ? await getMediaMeta(socialImage) : null,
-    siteName: (await getSiteSettings()).siteName,
+    image: (typeof socialImage === "string" ? await getMediaMeta(socialImage) : null) ?? settings.defaultShareImage,
+    siteName: settings.siteName,
+    defaultDescription: settings.defaultDescription,
     siteUrl: process.env.AUTH_URL, // static prerender: baked at build, so AUTH_URL must be set at build time too
   });
 }
