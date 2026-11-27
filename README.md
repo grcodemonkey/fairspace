@@ -82,6 +82,8 @@ Admins and editors create pages at `/admin/pages` and edit them in the Puck edit
 
 "Publish" saves the content in the editor and makes it live at once. Each publish keeps a revision. The history is at `/admin/pages/<id>/history`: it lists every revision with a preview. Admins can restore a revision: restore copies it into a new live revision and into the draft, so the history stays complete. Editors and admins can unpublish a page; the draft and the history stay. Known limit: an editor tab that was open during a restore can save its old draft over the restored draft (the last save wins). The live page stays the same until the next publish.
 
+Editors and admins change a page's address on its history page ("Address"). The old address redirects (308) to the new one, so links keep working, and it stays reserved: no other page can take it. The page itself can go back to an old address. The page with slug `home` cannot be renamed, and no page can be renamed to `home`. A redirect shows once the page is published; the new address of an unpublished page stays hidden.
+
 A published page shows at `/<slug>`. The page with slug `home` shows at `/`, and `/home` redirects to `/`. Public pages need no sign-in and show only the published revision, never the draft. Until a `home` page is published, `/` shows the welcome text.
 
 The editor warns when a page does not have exactly one H1 (a post: when a block adds an H1, or the title is empty, because the title is the post's H1). The warning shows beside Publish and does not block a save or a publish.
@@ -102,7 +104,7 @@ Video and Embed frames are sandboxed and load only when a visitor scrolls near t
 
 ## News posts
 
-Admins and editors create news posts at `/admin/news`. A post uses the same editor, blocks, publish, history, restore and unpublish as a page. A published post shows at `/news/<slug>` with its title and publish date. Pages and posts share one set of slugs, and no page can use the slug `news`.
+Admins and editors create news posts at `/admin/news`. A post uses the same editor, blocks, publish, history, restore and unpublish as a page. A published post shows at `/news/<slug>` with its title and publish date. Pages and posts share one set of slugs, and no page can use the slug `news`. A post keeps `/news/` when its slug changes: `/news/old` redirects to `/news/new`.
 
 The first publish sets the publish date; a republish, restore or unpublish keeps it. Editors and admins can change the date on the post's history page, to today or an earlier day (no scheduling). Dates are UTC days.
 

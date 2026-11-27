@@ -6,7 +6,7 @@ import { getDb } from "@/db";
 import { pageRevisions, pages, users } from "@/db/schema";
 import { requireUser } from "@/guards";
 import { publicPath } from "@/puck/slug";
-import { PostDateForm, RestoreButton, UnpublishButton } from "./history-buttons";
+import { PostDateForm, RestoreButton, SlugForm, UnpublishButton } from "./history-buttons";
 
 const HISTORY_LIMIT = 200;
 const formatDate = (date: Date) => `${date.toISOString().slice(0, 16).replace("T", " ")} UTC`;
@@ -80,6 +80,11 @@ async function History({ params }: { params: Promise<{ id: string }> }) {
           <span>Not published</span>
         )}
       </div>
+      {page.slug === "home" ? (
+        <p>The home page address cannot change.</p>
+      ) : (
+        <SlugForm id={page.id} slug={page.slug} prefix={page.kind === "post" ? "/news/" : "/"} />
+      )}
       {page.kind === "post" && (
         <PostDateForm
           id={page.id}

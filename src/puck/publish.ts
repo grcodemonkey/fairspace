@@ -21,6 +21,14 @@ export async function lockPage(tx: Tx, id: string) {
   return page ?? null;
 }
 
+/**
+ * Takes the one lock that makes "pages.slug is unique" and "not a redirect slug" a single check: no unique index
+ * can span two tables. Every writer of pages.slug or slug_redirects takes it first, then lockPage (never the reverse).
+ */
+export async function lockSlugs(tx: Tx) {
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext('fairspace:slugs'))`);
+}
+
 /** Adds a revision with `data`, makes it live, and sets the draft to it. Call after lockPage. */
 export async function goLive(tx: Tx, pageId: string, data: Data, userId: string | null) {
   // clock_timestamp(), not now(): now() is the transaction start, so a publish that waited for the lock could sort first.

@@ -5,7 +5,7 @@ import { getMediaMeta, resolvePageMedia } from "@/media-library";
 import { pageConfig } from "@/puck/config";
 import { pageMetadata } from "@/puck/seo";
 import { siteUrl } from "@/sitemap";
-import { getPublishedPage } from "@/puck/published";
+import { getPublishedPage, isRedirect } from "@/puck/published";
 import { publicPath, SLUG_FORMAT } from "@/puck/slug";
 import { getSiteSettings } from "@/site-settings";
 
@@ -28,7 +28,7 @@ type Props = PageProps<"/[[...slug]]">;
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const slug = resolveSlug((await params).slug);
   const page = slug ? await getPublishedPage(slug) : null;
-  if (!slug || !page) return {};
+  if (!slug || !page || isRedirect(page)) return {};
   // The published root props only: pages.title follows the draft.
   const props = page.data.root.props as Record<string, unknown> | undefined;
   const socialImage = props?.socialImage;
@@ -50,6 +50,7 @@ export default async function PublicPage({ params }: Props) {
   if (segments?.[0] === "home") permanentRedirect("/");
 
   const page = await getPublishedPage(slug);
+  if (page && isRedirect(page)) permanentRedirect(page.redirectTo);
   if (page) return <Render config={pageConfig} data={page.data} metadata={{ media: await resolvePageMedia(page.data) }} />;
   if (slug !== "home") notFound();
 

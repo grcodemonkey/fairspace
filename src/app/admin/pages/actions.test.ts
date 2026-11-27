@@ -5,11 +5,12 @@ import type { Session } from "next-auth";
 import { afterAll, beforeEach, expect, test, vi } from "vitest";
 import { auth } from "@/auth";
 import { getDb } from "@/db";
-import { pageRevisions, pages, users } from "@/db/schema";
+import { pageRevisions, pages, slugRedirects, users } from "@/db/schema";
 import { allBlocksFixture } from "@/puck/all-blocks.fixture";
+import { lockSlugs } from "@/puck/publish";
 import { getPublishedPage, pageTag } from "@/puck/published";
 import { SITEMAP_TAG } from "@/sitemap";
-import { createPage, publishPage, restoreRevision, saveDraft, setPostDate, unpublishPage } from "./actions";
+import { changeSlug, createPage, publishPage, restoreRevision, saveDraft, setPostDate, unpublishPage } from "./actions";
 
 vi.mock("@/auth", () => ({ auth: vi.fn() }));
 // updateTag and refresh work only inside a Next server action; "use cache" is a no-op outside Next.
@@ -257,7 +258,7 @@ test("publish-goes-live", async () => {
   expect(revision).toMatchObject({ data: doc("Live title"), createdBy: editorId });
   const saved = await reload(page.id);
   expect(saved).toMatchObject({ publishedRevisionId: revision.id, draft: doc("Live title"), title: "Live title" });
-  expect((await getPublishedPage(page.slug))?.data).toEqual(doc("Live title"));
+  expect(await getPublishedPage(page.slug)).toMatchObject({ data: doc("Live title") });
   expect(updateTag).toHaveBeenCalledWith(pageTag(page.slug));
   expect(updateTag).toHaveBeenCalledWith(SITEMAP_TAG);
 });
@@ -466,4 +467,148 @@ test("set-post-date", async () => {
   });
   expect((await reload(page.id)).publishedAt).toBeNull();
   expect((await reload(post.id)).publishedAt).toEqual(new Date("2026-01-15T00:00:00Z"));
+});
+
+const renameForm = (id: string, newSlug: string) => {
+  const f = new FormData();
+  f.set("id", id);
+  f.set("slug", newSlug);
+  return f;
+};
+const redirectSlugs = async (pageId: string) =>
+  (await getDb().select().from(slugRedirects).where(eq(slugRedirects.pageId, pageId))).map((r) => r.slug).sort();
+const livePage = async (name: string) => {
+  const page = await insertPage(name);
+  signedInAsEditor();
+  await publishPage(page.id, newDraft);
+  return page;
+};
+
+test("rename-adds-redirect", async () => {
+  const page = await livePage("rename-a");
+  const next = slug("rename-b");
+  await expect(changeSlug({}, renameForm(page.id, next))).resolves.toEqual({ message: "Saved" });
+  expect((await reload(page.id)).slug).toBe(next);
+  expect(await getPublishedPage(page.slug)).toEqual({ redirectTo: `/${next}` });
+  expect(updateTag).toHaveBeenCalledWith(pageTag(page.slug));
+  expect(updateTag).toHaveBeenCalledWith(pageTag(next));
+});
+
+test("rename-twice-no-chain", async () => {
+  const a = await livePage("chain-a");
+  const b = slug("chain-b");
+  const c = slug("chain-c");
+  await changeSlug({}, renameForm(a.id, b));
+  await changeSlug({}, renameForm(a.id, c));
+  expect(await getPublishedPage(a.slug)).toEqual({ redirectTo: `/${c}` });
+  expect(await getPublishedPage(b)).toEqual({ redirectTo: `/${c}` });
+});
+
+test("rename-back-own-slug", async () => {
+  const a = await livePage("back-a");
+  const b = slug("back-b");
+  await changeSlug({}, renameForm(a.id, b));
+  await expect(changeSlug({}, renameForm(a.id, a.slug))).resolves.toEqual({ message: "Saved" });
+  expect((await reload(a.id)).slug).toBe(a.slug);
+  expect(await redirectSlugs(a.id)).toEqual([b]);
+});
+
+test("rename-refuses-format-reserved-home", async () => {
+  const page = await livePage("refuse-a");
+  for (const bad of ["Not Valid!", "a--b", "-a", "admin", "news", "home"])
+    await expect(changeSlug({}, renameForm(page.id, bad))).resolves.toMatchObject({ error: expect.any(String) });
+  expect((await reload(page.id)).slug).toBe(page.slug);
+  expect(await redirectSlugs(page.id)).toEqual([]);
+  // The home page cannot move away from `home`.
+  const [home] = await getDb().select().from(pages).where(eq(pages.slug, "home"));
+  const created = home ?? (await getDb().insert(pages).values({ title: "Home", slug: "home", draft: newDraft }).returning())[0];
+  await expect(changeSlug({}, renameForm(created.id, slug("not-home")))).resolves.toEqual({
+    error: "The home page address cannot change.",
+  });
+  if (!home) await getDb().delete(pages).where(eq(pages.id, created.id));
+});
+
+test("rename-refuses-taken-by-page", async () => {
+  const a = await livePage("taken-a");
+  const b = await insertPage("taken-b");
+  await expect(changeSlug({}, renameForm(a.id, b.slug))).resolves.toEqual({ error: "That slug is in use." });
+  expect((await reload(a.id)).slug).toBe(a.slug);
+  expect(await redirectSlugs(a.id)).toEqual([]);
+});
+
+test("rename-refuses-taken-by-redirect", async () => {
+  const a = await livePage("held-a");
+  const b = await insertPage("held-b");
+  await changeSlug({}, renameForm(a.id, slug("held-a2")));
+  await expect(changeSlug({}, renameForm(b.id, a.slug))).resolves.toEqual({ error: "That slug is in use." });
+  expect((await reload(b.id)).slug).toBe(b.slug);
+});
+
+test("create-refuses-redirect-slug", async () => {
+  const a = await livePage("create-a");
+  await changeSlug({}, renameForm(a.id, slug("create-a2")));
+  await expect(createPage({}, form("New", a.slug))).resolves.toMatchObject({ error: "That slug is in use." });
+  expect(await getDb().select().from(pages).where(eq(pages.slug, a.slug))).toHaveLength(0);
+});
+
+test("post-rename-keeps-news-prefix", async () => {
+  const post = await insertPost("rename-post");
+  signedInAsEditor();
+  await publishPage(post.id, newDraft);
+  const next = slug("renamed-post");
+  await changeSlug({}, renameForm(post.id, next));
+  expect((await reload(post.id)).kind).toBe("post");
+  expect(await getPublishedPage(post.slug, "post")).toEqual({ redirectTo: `/news/${next}` });
+  expect(await getPublishedPage(post.slug)).toBeNull(); // an old post slug is not a page address
+});
+
+test("editor-may-rename", async () => {
+  const page = await insertPage("who-a");
+  const next = slug("who-b");
+  await expect(changeSlug({}, renameForm(page.id, next))).rejects.toMatchObject({
+    digest: expect.stringMatching(REDIRECT_TO_SIGN_IN),
+  });
+  signedInAsEditor();
+  await expect(changeSlug({}, renameForm(page.id, next))).resolves.toEqual({ message: "Saved" });
+  expect((await reload(page.id)).updatedBy).toBe(editorId);
+});
+
+test("create-and-rename-race-one-wins", async () => {
+  const page = await livePage("race-a");
+  const target = slug("race-target");
+  const results = await Promise.all([
+    createPage({}, form("Racer", target)).then(
+      () => "created",
+      (e) => (REDIRECT_TO_EDITOR.test(e?.digest) ? "created" : "failed"),
+    ),
+    changeSlug({}, renameForm(page.id, target)).then((r) => ("error" in r ? "failed" : "renamed")),
+  ]);
+  // Both end with the slug on a page, so the loser must see the winner. The rename also leaves a redirect from page.slug.
+  expect(results.filter((r) => r !== "failed")).toHaveLength(1);
+  expect(await getDb().select().from(pages).where(eq(pages.slug, target))).toHaveLength(1);
+});
+
+test("create-waits-for-slug-lock", async () => {
+  // A writer holds lockSlugs and adds a redirect for `target`. The create must wait, then see the redirect and refuse.
+  // Without lockSlugs, the create would insert the page at once and a page and a redirect would share the slug.
+  const owner = await livePage("lock-owner");
+  const target = slug("lock-target");
+  let pending: Promise<unknown> = Promise.resolve();
+  await getDb().transaction(async (tx) => {
+    await lockSlugs(tx);
+    pending = createPage({}, form("Racer", target));
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    await tx.insert(slugRedirects).values({ slug: target, pageId: owner.id });
+  });
+  await expect(pending).resolves.toMatchObject({ error: "That slug is in use." });
+  expect(await getDb().select().from(pages).where(eq(pages.slug, target))).toHaveLength(0);
+});
+
+test("slug-too-long-refused", async () => {
+  signedInAsEditor();
+  const page = await insertPage("long");
+  const long = "a".repeat(101);
+  await expect(changeSlug({}, renameForm(page.id, long))).resolves.toMatchObject({ error: expect.any(String) });
+  await expect(createPage({}, form("Long", long))).resolves.toMatchObject({ slug: long, error: expect.any(String) });
+  expect(await getDb().select().from(pages).where(eq(pages.slug, long))).toHaveLength(0);
 });

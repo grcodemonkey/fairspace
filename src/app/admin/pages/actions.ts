@@ -4,10 +4,10 @@ import { and, eq } from "drizzle-orm";
 import { refresh } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { getDb } from "@/db";
-import { pageRevisions, pages } from "@/db/schema";
+import { pageRevisions, pages, slugRedirects } from "@/db/schema";
 import { requireAdmin, requireUser } from "@/guards";
-import { goLive, invalidatePage, lockPage } from "@/puck/publish";
-import { normalizeSlug, RESERVED_SLUGS, SLUG_FORMAT } from "@/puck/slug";
+import { goLive, invalidatePage, lockPage, lockSlugs } from "@/puck/publish";
+import { normalizeSlug, slugError } from "@/puck/slug";
 import { PageDataError, parsePageData } from "@/puck/validate";
 
 // The typed values come back with the error: React resets the form after an action.
@@ -25,17 +25,26 @@ export async function createPage(_prev: CreatePageState, formData: FormData): Pr
   const fail = (error: string) => ({ error, title, slug });
   if (kind !== "page" && kind !== "post") return fail("Invalid request.");
   if (!title) return fail("Enter a title.");
-  if (!SLUG_FORMAT.test(slug)) return fail("Use lower-case letters, numbers and single dashes in the slug.");
-  if (RESERVED_SLUGS.includes(slug)) return fail("That slug is reserved.");
+  const invalid = slugError(slug);
+  if (invalid) return fail(invalid);
   // A post named `home` would take the slug the home page needs.
   if (kind === "post" && slug === "home") return fail("That slug is reserved.");
 
   let id: string;
   try {
-    [{ id }] = await getDb()
-      .insert(pages)
-      .values({ kind, title, slug, draft: { root: { props: { title } }, content: [] }, updatedBy: user.id ?? null })
-      .returning({ id: pages.id });
+    const created = await getDb().transaction(async (tx) => {
+      await lockSlugs(tx);
+      // An old slug of a renamed page stays reserved for that page.
+      const [redirect] = await tx.select({ slug: slugRedirects.slug }).from(slugRedirects).where(eq(slugRedirects.slug, slug));
+      if (redirect) return null;
+      const [row] = await tx
+        .insert(pages)
+        .values({ kind, title, slug, draft: { root: { props: { title } }, content: [] }, updatedBy: user.id ?? null })
+        .returning({ id: pages.id });
+      return row.id;
+    });
+    if (!created) return fail("That slug is in use.");
+    id = created;
   } catch (error) {
     if (isUniqueViolation(error)) return fail("That slug is in use.");
     throw error;
@@ -166,6 +175,48 @@ export async function setPostDate(_prev: PublishState, formData: FormData): Prom
     .returning({ slug: pages.slug });
   if (!post) return { error: "Only a news post has a publish date." };
   invalidatePage(post.slug);
+  refresh();
+  return { message: "Saved" };
+}
+
+/**
+ * Changes a page's or post's slug. The old slug becomes a 308 redirect to the page (slug_redirects), so links keep working.
+ * Editors and admins. `home` cannot be renamed, and no page can be renamed to `home`.
+ */
+export async function changeSlug(_prev: PublishState, formData: FormData): Promise<PublishState> {
+  const user = await requireUser();
+  const id = field(formData, "id");
+  const slug = normalizeSlug(String(formData.get("slug") ?? ""));
+  if (!id) return { error: "Invalid request." };
+  const invalid = slugError(slug);
+  if (invalid) return { error: invalid };
+  if (slug === "home") return { error: "That slug is reserved." };
+  let result: { error: string } | { old: string } | null;
+  try {
+    result = await getDb().transaction(async (tx) => {
+      await lockSlugs(tx);
+      const page = await lockPage(tx, id);
+      if (!page) return null;
+      if (page.slug === "home") return { error: "The home page address cannot change." };
+      if (page.slug === slug) return { old: slug };
+      const [redirect] = await tx.select({ pageId: slugRedirects.pageId }).from(slugRedirects).where(eq(slugRedirects.slug, slug));
+      if (redirect && redirect.pageId !== id) return { error: "That slug is in use." };
+      // A rename back to an old slug of this page: the page owns it again, so the redirect row goes.
+      if (redirect) await tx.delete(slugRedirects).where(eq(slugRedirects.slug, slug));
+      await tx.update(pages).set({ slug, updatedAt: new Date(), updatedBy: user.id ?? null }).where(eq(pages.id, id));
+      await tx.insert(slugRedirects).values({ slug: page.slug, pageId: id });
+      return { old: page.slug };
+    });
+  } catch (error) {
+    if (isUniqueViolation(error)) return { error: "That slug is in use." };
+    throw error;
+  }
+  if (!result) notFound();
+  if ("error" in result) return result;
+  if (result.old !== slug) {
+    invalidatePage(result.old);
+    invalidatePage(slug);
+  }
   refresh();
   return { message: "Saved" };
 }

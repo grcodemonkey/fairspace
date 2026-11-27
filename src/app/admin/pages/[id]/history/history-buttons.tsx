@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { restoreRevision, setPostDate, unpublishPage } from "../../actions";
+import { changeSlug, restoreRevision, setPostDate, unpublishPage } from "../../actions";
 
 export function RestoreButton({ pageId, revisionId }: { pageId: string; revisionId: string }) {
   const [state, action, pending] = useActionState(restoreRevision, {});
@@ -60,6 +60,37 @@ export function PostDateForm({ id, date, max }: { id: string; date: string; max:
         Save date
       </button>
       <p aria-live="polite" className={state.error ? "text-danger" : undefined}>
+        {state.error ?? state.message}
+      </p>
+    </form>
+  );
+}
+
+/** The page's address. changeSlug checks the rules and keeps the old address as a redirect. */
+export function SlugForm({ id, slug, prefix }: { id: string; slug: string; prefix: string }) {
+  const [state, action, pending] = useActionState(changeSlug, {});
+  return (
+    <form action={action} aria-label="Address" className="flex items-end gap-3">
+      <input type="hidden" name="id" value={id} />
+      <label className="flex flex-col gap-1">
+        Address
+        <span className="flex items-center gap-1">
+          {prefix}
+          <input
+            name="slug"
+            defaultValue={slug}
+            required
+            maxLength={100}
+            autoCapitalize="none"
+            spellCheck={false}
+            className="border rounded px-3 py-2"
+          />
+        </span>
+      </label>
+      <button type="submit" disabled={pending} className="border rounded px-3 py-2 font-semibold">
+        Change address
+      </button>
+      <p aria-live="polite" className={state.error ? "text-red-700" : undefined}>
         {state.error ?? state.message}
       </p>
     </form>
