@@ -18,6 +18,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   // One worker: sign-in.spec.ts deletes every admin in beforeAll, which would race roles.spec.ts.
+  // Specs must run serially: settings.spec.ts changes the shared site settings that every public page shows.
   workers: 1,
   // Migrates the test database; refuses any database whose name does not end in _test.
   globalSetup: "./vitest.global-setup.ts",

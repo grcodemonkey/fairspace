@@ -50,6 +50,13 @@
       "when": 1795733067098,
       "tag": "0006_page_revision_same_page",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795738463223,
+      "tag": "0007_site_settings",
+      "breakpoints": true
     }
   ]
 }

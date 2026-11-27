@@ -135,3 +135,27 @@ export const media = pgTable("media", {
   // null = not set yet (flagged in the library); '' = decorative; #14 renders `alt ?? ''`.
   alt: text("alt"),
 });
+
+// Site-wide settings: one row (id = 1). Each column null = the default in src/brand.ts.
+// Later settings (#16 SEO, #20 analytics) add their own columns here.
+export const siteSettings = pgTable(
+  "site_settings",
+  {
+    id: integer("id").primaryKey().default(1),
+    siteName: text("siteName"),
+    // The media delete action refuses the logo file; the FK is only the safety net.
+    logoMediaId: text("logoMediaId").references(() => media.id, { onDelete: "set null" }),
+    primaryLight: text("primaryLight"),
+    primaryDark: text("primaryDark"),
+    font: text("font"),
+    updatedAt: timestamp("updatedAt", { mode: "date", withTimezone: true }).notNull().defaultNow(),
+    updatedBy: text("updatedBy").references(() => users.id, { onDelete: "set null" }),
+  },
+  // The colors reach CSS: only a 6-digit lower-case hex gets in (the action and the layout check again).
+  (s) => [
+    check("site_settings_single_row", sql`${s.id} = 1`),
+    check("site_settings_primary_light_hex", sql`${s.primaryLight} ~ '^#[0-9a-f]{6}$'`),
+    check("site_settings_primary_dark_hex", sql`${s.primaryDark} ~ '^#[0-9a-f]{6}$'`),
+    check("site_settings_font", sql`${s.font} in ('geist', 'system', 'serif')`),
+  ],
+);

@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
 import postgres from "postgres";
+import { BRAND_DEFAULTS } from "../src/brand";
+
+const { siteName } = BRAND_DEFAULTS;
 
 // All tests run signed out: public pages need no session.
 const sql = postgres(process.env.DATABASE_URL!, { max: 1 });
@@ -47,9 +50,12 @@ test.afterAll(async () => {
 test("published-page-renders", async ({ page }) => {
   const response = await page.goto(`/${published}`);
   expect(response?.status()).toBe(200);
-  await expect(page).toHaveTitle(`Published title ${run}`);
+  // <title> has the site name; og:title is the page title only, og:site_name has the name.
+  await expect(page).toHaveTitle(`Published title ${run} · ${siteName}`);
+  await expect(page.locator('head meta[property="og:title"]')).toHaveAttribute("content", `Published title ${run}`);
+  await expect(page.locator('head meta[property="og:site_name"]')).toHaveAttribute("content", siteName);
   await expect(page.getByText(`Draft title ${run}`)).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Fairspace" })).toBeVisible();
+  await expect(page.getByRole("link", { name: siteName })).toBeVisible();
 });
 
 test("draft-only-page-404", async ({ page }) => {

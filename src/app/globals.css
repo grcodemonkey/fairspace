@@ -12,10 +12,17 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* Block colors. #18 (Brand settings) overrides these. Light: #1d4ed8 and white, 6.7:1 both ways (WCAG AA). */
+/* Block colors. The site layout's .brand wrapper overrides these with the saved brand. Light: #1d4ed8 and white, 6.7:1 both ways (WCAG AA). */
 @theme {
   --color-primary: #1d4ed8;
   --color-on-primary: #ffffff;
+}
+
+/* Brand settings (#18). The site layout sets the --brand-* values: checked hex colors and a fixed font stack only. */
+.brand {
+  --color-primary: var(--brand-primary-light);
+  --color-on-primary: var(--brand-on-primary-light);
+  font-family: var(--brand-font);
 }
 
 /* Readable width for blocks; Hero stays full-bleed. A block inside Columns takes the column width. */
@@ -39,6 +46,10 @@
     /* #60a5fa on #0a0a0a is 7.8:1, and #0a0a0a text on it is 7.8:1 (WCAG AA). */
     --color-primary: #60a5fa;
     --color-on-primary: #0a0a0a;
+  }
+  .brand {
+    --color-primary: var(--brand-primary-dark);
+    --color-on-primary: var(--brand-on-primary-dark);
   }
 }
 

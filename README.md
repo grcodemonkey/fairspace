@@ -94,8 +94,19 @@ In production (Cloudflare R2, Backblaze B2, AWS S3 or another S3-compatible serv
 - **Abandoned uploads**: an upload that never finishes is deleted after 1 hour, with its row and its `uploads/` object. Each new upload runs this cleanup after its response.
 - **Serving**: each finished file is public at `/media/<id>.<ext>`. The bucket stays private: the app streams the file with the type from the database, `X-Content-Type-Options: nosniff`, and `Cache-Control: public, max-age=86400`. Anyone who has the URL can open the file (the id is a random UUID). That is required, because public pages show these files.
 - **Alt text**: set it for each image in the library. An image with no alt text shows a "No alt text" badge. Mark an image "Decorative image" when it adds no information; it then gets an empty alt.
-- **Delete**: editors delete their own uploads; admins delete any upload. A file that the draft or the live version of a page uses cannot be deleted: the library lists the pages. Remove the file from those pages first. Old versions in the page history do not block a delete; if you restore one, the deleted file shows no image.
+- **Delete**: editors delete their own uploads; admins delete any upload. A file that the draft or the live version of a page uses cannot be deleted: the library lists the pages. Remove the file from those pages first. Old versions in the page history do not block a delete; if you restore one, the deleted file shows no image. The site logo cannot be deleted either; change the logo in Settings first.
 - **After a delete**: browsers and a CDN can keep the file for up to 1 day. The image optimizer cache keeps resized copies too; on a self-hosted install, `rm -rf .next/cache/images` removes them at once.
+
+## Site settings
+
+Admins edit the site at `/admin/settings`. Editors get a 403.
+
+- **Site name**: shows in the public header and in each page title ("Page title · Site name"). 1 to 100 characters.
+- **Logo**: an image from the media library. It replaces the site name in the header; its alt text is the site name. A file in use as the logo cannot be deleted.
+- **Primary colors**: one for light mode, one for dark mode. Buttons and links use them. Each must have at least 4.5:1 contrast on its page background (WCAG AA); a lower color is refused with its ratio. The text on a button is white or black, whichever has more contrast.
+- **Font**: one font for the whole public site: Geist (default), System sans, or Serif.
+
+Public pages show a save at once. The Puck editor preview keeps the default colors and font.
 
 ## Commands
 

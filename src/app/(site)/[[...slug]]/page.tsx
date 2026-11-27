@@ -6,6 +6,7 @@ import { pageConfig } from "@/puck/config";
 import { pageMetadata } from "@/puck/seo";
 import { getPublishedPage } from "@/puck/published";
 import { SLUG_FORMAT } from "@/puck/slug";
+import { getSiteSettings } from "@/site-settings";
 
 // Each slug renders once as a static prerender, so notFound() gives a real 404 status.
 export const ensureStatic = "navigation";
@@ -34,6 +35,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     props,
     slug,
     image: typeof socialImage === "string" ? await getMediaMeta(socialImage) : null,
+    siteName: (await getSiteSettings()).siteName,
     siteUrl: process.env.AUTH_URL, // static prerender: baked at build, so AUTH_URL must be set at build time too
   });
 }
