@@ -53,7 +53,7 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
         <SiteMenu />
       </header>
       <main className="flex-1">{children}</main>
-      <footer className="border-t px-8 py-4 text-sm text-gray-500">Built with Fairspace</footer>
+      <footer className="border-t px-8 py-4 text-sm text-gray-500 dark:text-gray-400">Built with Fairspace</footer>
       <Analytics analytics={settings.analytics} />
     </div>
   );
