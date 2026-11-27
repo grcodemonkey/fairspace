@@ -59,12 +59,12 @@ test("editor-seo-fields-save", async ({ page, context, baseURL }) => {
     values (${crypto.randomUUID()}, 'SEO page', ${seoSlug}, ${sql.json({ root: { props: { title: "SEO page" } }, content: [] })})
     returning id`;
   await page.goto(`/admin/pages/${id}/edit`);
-  const status = page.getByRole("status").filter({ hasText: /Saved|Page Description/ });
+  const status = page.getByRole("status").filter({ hasText: /Saved|at most 300/ });
 
   await page.getByRole("textbox", { name: /^Description/ }).fill("Short summary");
   await page.getByRole("button", { name: "Choose media" }).click();
   await page.getByRole("dialog").getByLabel("Upload a file").setInputFiles({ name: "share.png", mimeType: "image/png", buffer: PNG });
-  await expect(page.getByText("share.png").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove" })).toBeVisible(); // picked and the dialog closed
   await page.getByRole("button", { name: "Save draft" }).click();
   await expect(status).toHaveText("Saved");
   const [row] = await sql`select draft from pages where id = ${id}`;
@@ -72,7 +72,7 @@ test("editor-seo-fields-save", async ({ page, context, baseURL }) => {
 
   await page.getByRole("textbox", { name: /^Description/ }).fill("x".repeat(301));
   await page.getByRole("button", { name: "Save draft" }).click();
-  await expect(status).toHaveText("Page Description can be at most 300 characters.");
+  await expect(status).toHaveText("A Page text field can be at most 300 characters.");
 });
 
 test("editor-shows-all-blocks", async ({ page, context, baseURL }) => {
