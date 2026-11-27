@@ -21,7 +21,7 @@ export function InviteForm() {
       <button type="submit" disabled={pending} className="border rounded px-3 py-2 font-semibold">
         Invite
       </button>
-      <p aria-live="polite" className={state.error ? "text-red-700" : ""}>
+      <p aria-live="polite" className={state.error ? "text-danger" : ""}>
         {state.error ?? state.message}
       </p>
     </form>

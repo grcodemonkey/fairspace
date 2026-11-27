@@ -72,7 +72,7 @@ export function MediaRow({ item, uploadedOn, canDelete }: { item: MediaItem; upl
             </button>
           </form>
         )}
-        <p aria-live="polite" className="text-red-700">
+        <p aria-live="polite" className="text-danger">
           {error}
         </p>
       </div>

@@ -66,7 +66,7 @@ export function BrandForm({ settings }: { settings: SiteSettings }) {
       <button type="submit" disabled={pending} className="border rounded px-3 py-2 font-semibold">
         Save brand
       </button>
-      <p role="status" className={state.error ? "text-red-700" : ""}>
+      <p role="status" className={state.error ? "text-danger" : ""}>
         {state.error ?? state.message}
       </p>
     </form>

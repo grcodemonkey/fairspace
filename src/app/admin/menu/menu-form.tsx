@@ -51,7 +51,7 @@ export function MenuForm({ initial, pages }: { initial: MenuInputItem[]; pages: 
         <button type="submit" disabled={pending} className="border rounded px-3 py-2 font-semibold">
           Save menu
         </button>
-        <p role="status" className={status.error ? "text-red-700" : ""}>
+        <p role="status" className={status.error ? "text-danger" : ""}>
           {status.error ?? status.message}
         </p>
       </div>

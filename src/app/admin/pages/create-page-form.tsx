@@ -18,7 +18,7 @@ export function CreatePageForm({ kind = "page" }: { kind?: "page" | "post" }) {
         <input name="slug" defaultValue={state.slug} required placeholder="about-us" className="border rounded px-3 py-2" />
       </label>
       {state.error && (
-        <p role="alert" className="text-red-700">
+        <p role="alert" className="text-danger">
           {state.error}
         </p>
       )}

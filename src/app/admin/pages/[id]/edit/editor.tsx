@@ -71,7 +71,8 @@ function EditorActions({ id, kind }: { id: string; kind: "page" | "post" }) {
   const button = "border rounded px-3 py-1 font-semibold whitespace-nowrap";
   return (
     // The status sits on its own line under the buttons, so a long error never squeezes them (margin only when it has text).
-    <div className="flex flex-col items-end">
+    // data-fairspace: the axe scan of the editor covers only our parts, not Puck's own UI (#53).
+    <div data-fairspace className="flex flex-col items-end">
       <div className="flex items-center gap-3">
         <Link href={`/admin/pages/${id}/history`} className="underline">
           History

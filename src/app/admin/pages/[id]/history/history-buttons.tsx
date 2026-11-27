@@ -17,7 +17,7 @@ export function RestoreButton({ pageId, revisionId }: { pageId: string; revision
       <button type="submit" disabled={pending} className="border rounded px-2 py-1">
         Restore
       </button>
-      <p aria-live="polite" className={state.error ? "text-red-700" : undefined}>
+      <p aria-live="polite" className={state.error ? "text-danger" : undefined}>
         {state.error ?? state.message}
       </p>
     </form>
@@ -39,7 +39,7 @@ export function UnpublishButton({ id }: { id: string }) {
       <button type="submit" disabled={pending} className="border rounded px-2 py-1">
         Unpublish
       </button>
-      <p aria-live="polite" className="text-red-700">
+      <p aria-live="polite" className="text-danger">
         {state.error}
       </p>
     </form>
@@ -59,7 +59,7 @@ export function PostDateForm({ id, date, max }: { id: string; date: string; max:
       <button type="submit" disabled={pending} className="border rounded px-3 py-2 font-semibold">
         Save date
       </button>
-      <p aria-live="polite" className={state.error ? "text-red-700" : undefined}>
+      <p aria-live="polite" className={state.error ? "text-danger" : undefined}>
         {state.error ?? state.message}
       </p>
     </form>
