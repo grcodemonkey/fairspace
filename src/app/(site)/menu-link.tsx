@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Suspense } from "react";
+import { type ReactNode, Suspense } from "react";
 
 type Props = { href: string; label: string; className?: string };
 
@@ -22,5 +22,25 @@ function CurrentLink({ href, label, className }: Props) {
     <Link href={href} className={className} aria-current={current ? "page" : undefined}>
       {label}
     </Link>
+  );
+}
+
+type SubMenuProps = { hrefs: string[]; className: string; children: ReactNode };
+
+/** A dropdown that starts open when one of its children is the current page, so the current link shows. */
+export function SubMenu(props: SubMenuProps) {
+  return (
+    <Suspense fallback={<details className={props.className}>{props.children}</details>}>
+      <OpenOnCurrent {...props} />
+    </Suspense>
+  );
+}
+
+function OpenOnCurrent({ hrefs, className, children }: SubMenuProps) {
+  const open = hrefs.includes(usePathname());
+  return (
+    <details className={className} open={open}>
+      {children}
+    </details>
   );
 }

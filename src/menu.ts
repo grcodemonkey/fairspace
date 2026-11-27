@@ -83,7 +83,7 @@ async function loadMenu(): Promise<MenuLinkItem[]> {
     .orderBy(asc(menuItems.position));
   const hrefs = new Map<string, string>();
   for (const { item, slug, published } of rows) {
-    if (item.url && isSafeHref(item.url)) hrefs.set(item.id, item.url.trim());
+    if (item.url && isSafeHref(item.url)) hrefs.set(item.id, item.url);
     else if (item.pageId && published && slug) hrefs.set(item.id, pageHref(slug));
   }
   // A hidden item drops out here, so no label of an unpublished page reaches the public HTML.

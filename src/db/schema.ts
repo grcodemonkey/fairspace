@@ -175,6 +175,8 @@ export const menuItems = pgTable(
     parentId: text("parentId").references((): AnyPgColumn => menuItems.id, { onDelete: "cascade" }),
     position: integer("position").notNull(),
     label: text("label").notNull(),
+    // The cascade also removes the children of a deleted top item. A future page-delete action must call
+    // updateTag(MENU_TAG) (src/menu.ts), or the cached public menu keeps the gone links.
     pageId: text("pageId").references(() => pages.id, { onDelete: "cascade" }),
     url: text("url"),
   },

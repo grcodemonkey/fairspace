@@ -91,11 +91,18 @@ test("menu-keyboard-dropdown", async ({ page }) => {
   await expect(nav.getByRole("link", { name: "Team" })).toBeHidden();
   await nav.getByRole("link", { name: "Our work" }).focus();
   await page.keyboard.press("Tab");
-  await expect(nav.getByLabel("More in Our work")).toBeFocused();
+  await expect(nav.locator("summary", { hasText: "More in Our work" })).toBeFocused();
   await page.keyboard.press("Enter");
   await page.keyboard.press("Tab");
   await expect(nav.getByRole("link", { name: "Team" })).toBeFocused();
   await expect(nav.getByRole("link", { name: "History" })).toBeVisible();
+});
+
+test("current-child-opens-dropdown", async ({ page }) => {
+  await page.goto(`/${slugs[2]}`);
+  const history = page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "History" });
+  await expect(history).toBeVisible();
+  await expect(history).toHaveAttribute("aria-current", "page");
 });
 
 test("mobile-menu-opens", async ({ browser }) => {
@@ -107,7 +114,7 @@ test("mobile-menu-opens", async ({ browser }) => {
   await nav.getByText("Menu", { exact: true }).click();
   await expect(nav.getByRole("link", { name: "About" })).toBeVisible();
   await expect(nav.getByRole("link", { name: "History" })).toBeHidden();
-  await nav.getByLabel("More in Our work").click();
+  await nav.locator("summary", { hasText: "More in Our work" }).click();
   await expect(nav.getByRole("link", { name: "History" })).toBeVisible();
   await context.close();
 });
