@@ -2,6 +2,30 @@
 
 An open-source site builder for nonprofits. One site per install.
 
+## Deploy to Vercel
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fgrcodemonkey%2Ffairspace&project-name=fairspace&repository-name=fairspace&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%2C%22protocol%22%3A%22storage%22%7D%5D&env=AUTH_SECRET%2CEMAIL_SERVER%2CEMAIL_FROM%2CADMIN_EMAIL%2CS3_ENDPOINT%2CS3_REGION%2CS3_BUCKET%2CS3_ACCESS_KEY_ID%2CS3_SECRET_ACCESS_KEY&envDefaults=%7B%22S3_REGION%22%3A%22auto%22%7D&envDescription=Sign-in%20secret%2C%20SMTP%20sender%20%28for%20example%20Resend%29%2C%20first%20admin%20email%2C%20and%20an%20S3-compatible%20bucket%20%28for%20example%20Cloudflare%20R2%29.&envLink=https%3A%2F%2Fgithub.com%2Fgrcodemonkey%2Ffairspace%23deploy-to-vercel)
+
+The button copies this repository to your GitHub account, creates a Vercel project, and creates a Neon Postgres database through the Vercel Marketplace. Neon sets `DATABASE_URL` for you. Before you click, have an S3-compatible bucket (for example Cloudflare R2) and an SMTP sender (for example Resend) ready. Vercel asks for these values:
+
+| Variable | Value |
+| --- | --- |
+| `AUTH_SECRET` | Generate with `openssl rand -base64 32`. See [Sign in](#sign-in). |
+| `EMAIL_SERVER` | SMTP URL, for example `smtp://resend:<API_KEY>@smtp.resend.com:465`. |
+| `EMAIL_FROM` | Sender address, for example `Fairspace <noreply@example.org>`. |
+| `ADMIN_EMAIL` | Email of the first admin. |
+| `S3_ENDPOINT` | Bucket endpoint. AWS S3: `https://s3.<region>.amazonaws.com`. See [Media storage](#media-storage). |
+| `S3_REGION` | Bucket region. R2: `auto`. |
+| `S3_BUCKET` | Bucket name. |
+| `S3_ACCESS_KEY_ID` | Bucket access key. |
+| `S3_SECRET_ACCESS_KEY` | Bucket secret key. |
+
+- Each production deploy runs the database migrations. Preview deploys skip them.
+- A build with a missing variable fails and lists every missing name. Vercel applies variable changes on the next deploy, so redeploy after you fix them.
+- `AUTH_URL` is optional on Vercel. Set it when you add a custom domain, then redeploy.
+- After the first deploy, set the bucket CORS origin to the site URL.
+- To use a Postgres database from another provider, skip the Neon step and set `DATABASE_URL` in Project Settings.
+
 ## Requirements
 
 - Node 24 (see `.nvmrc`)
@@ -148,6 +172,7 @@ Public pages show a save at once. The Puck editor preview keeps the default colo
 | `pnpm exec playwright install chromium` | Install the e2e browser |
 | `pnpm dev` | Start the dev server at http://localhost:3000 |
 | `pnpm build` | Production build |
+| `pnpm vercel-build` | What Vercel runs: check required env vars, migrate (production only), then build |
 | `pnpm lint` | ESLint |
 | `pnpm typecheck` | Generate route types, then `tsc --noEmit` |
 | `pnpm db:up` | Start local Postgres, Mailpit and SeaweedFS (Docker), wait until ready, then create the media bucket |
