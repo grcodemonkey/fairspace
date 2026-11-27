@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { CSSProperties } from "react";
 import { BRAND_DEFAULTS, FONTS, onColor, safeHex } from "@/brand";
 import { getSiteSettings } from "@/site-settings";
+import { SiteMenu } from "./site-menu";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { siteName, defaultDescription, defaultShareImage } = await getSiteSettings();
@@ -22,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-// The public theme shell. #19 menu renders here.
+// The public theme shell: brand (#18) and menu (#19).
 export default async function SiteLayout({ children }: LayoutProps<"/">) {
   const settings = await getSiteSettings();
   // Second check at render (after the action and the DB constraint): only a 6-digit hex reaches CSS.
@@ -39,7 +40,7 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
 
   return (
     <div className="brand flex flex-1 flex-col" style={brand}>
-      <header className="border-b px-8 py-4">
+      <header className="border-b px-8 py-4 flex flex-wrap items-center justify-between gap-x-8">
         <Link href="/" className="text-lg font-semibold">
           {settings.logo ? (
             // The logo is the link's only content, so its alt is the site name.
@@ -48,6 +49,7 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
             settings.siteName
           )}
         </Link>
+        <SiteMenu />
       </header>
       <main className="flex-1">{children}</main>
       <footer className="border-t px-8 py-4 text-sm text-gray-500">Built with Fairspace</footer>
