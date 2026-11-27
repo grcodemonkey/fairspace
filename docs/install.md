@@ -19,6 +19,8 @@ You need these accounts. All of them have a free plan:
 
 You also need a domain name that you control, for example `example.org`. You must be able to add DNS records to it. Resend sends email only from a domain that you verify, so you cannot skip this. The site itself can use the `.vercel.app` address until you are ready to move it to your domain.
 
+If you cannot add DNS records yourself, find out who manages the domain before you start (for example your web company or IT volunteer). Without their help you cannot finish step 4, and the install stops there.
+
 Use an email inbox that your organization controls for these accounts, for example `web@example.org`. Do not use the private email of one volunteer.
 
 ### Values to copy
@@ -135,7 +137,7 @@ The `EMAIL_FROM` address must use the domain that you verified. If it does not, 
 
 6. Click **Deploy**. The first build takes a few minutes.
 
-**About `ADMIN_EMAIL`.** The first person who signs in with this email becomes the admin. Use an inbox that your organization controls, for example `web@example.org`. Do not use the private email of one volunteer. Keep this value set after the install. While an admin exists, it does nothing. But if all admins are removed, the next sign-in with this email makes an admin again. It is your way back in after a lockout.
+**About `ADMIN_EMAIL`.** The first person who signs in with this email becomes the admin. Use an inbox that your organization controls (see step 1). Keep this value set after the install. While an admin exists, it does nothing. But if all admins are removed, the next sign-in with this email makes an admin again. It is your way back in after a lockout.
 
 ## 6. After the first deploy
 
@@ -199,7 +201,7 @@ Official guide: [Vercel custom domains](https://vercel.com/docs/domains/working-
 
 1. In Vercel, open your project, then **Settings** > **Domains**.
 2. Click **Add Existing** and type your domain, for example `example.org`.
-3. Vercel shows the DNS records to add. For the main domain (`example.org`) it is an **A** record. For `www` or another subdomain it is a **CNAME** record. Copy the values that Vercel shows into your DNS host.
+3. Vercel shows the DNS record to add and its values. A DNS record tells the internet where your domain points. Vercel tells you which type to add: an **A** record points the main domain (`example.org`) to an internet address, and a **CNAME** record points a subdomain (for example `www.example.org`) to a name at Vercel. Copy the type and the values that Vercel shows into your DNS host.
 4. Wait until Vercel shows the domain as ready.
 5. In **Settings** > **Environment Variables**, add `AUTH_URL` with your new address, for example `https://example.org`.
 6. In Cloudflare, add your new address to the CORS rule of your bucket (step 6b). Keep the old address in the list too:
@@ -257,7 +259,7 @@ Vercel builds the push and runs the database migrations before the new version g
 
 ## 12. Costs
 
-Checked on 2026-11-26. Prices change; read each linked page.
+Prices change; read each linked page.
 
 - **Vercel Hobby:** free. Vercel's [Terms of Service](https://vercel.com/legal/terms) say: "You shall only use the Services under a Hobby plan for your personal or non-commercial use." Read Vercel's [Fair Use Guidelines](https://vercel.com/docs/limits/fair-use-guidelines) and choose for your organization: Hobby, or [Pro](https://vercel.com/docs/plans/pro-plan) ($20 a month for each developer seat). Fairspace gives no legal advice on this.
 - **Neon Free:** 1 GB of storage and 100 CU-hours of compute a month for each project. If you use all the compute, the database stops until the next month. Your data stays. See [Neon plans](https://neon.com/docs/introduction/plans).
