@@ -57,6 +57,8 @@ Admins and editors create pages at `/admin/pages` and edit them in the Puck edit
 
 A published page shows at `/<slug>`. The page with slug `home` shows at `/`, and `/home` redirects to `/`. Public pages need no sign-in and show only the published revision, never the draft. Until a `home` page is published, `/` shows the welcome text.
 
+The editor warns when a page does not have exactly one H1 (a post: when a block adds an H1, or the title is empty, because the title is the post's H1). The warning shows beside Publish and does not block a save or a publish.
+
 Search and sharing: in the editor's page fields, set a Description (at most 300 characters; about 160 shows in search results), a Social image (from the media library) and "Hide from search engines". They fill the `description`, canonical, `og:*` and `twitter:*` tags on the published page. "Hide" adds `robots: noindex`. Pages are prerendered, so set `AUTH_URL` at build time and at run time: the canonical and `og:image` URLs are fixed at build. A page with no social image has no `og:image`.
 
 Blocks: Hero (with an optional background image under a dark overlay), Heading, Rich text, Button, Image (with an optional caption), Image + text (the image stacks over the text on mobile), Card grid (1–12 cards with an image, title, text and link), Columns (2–4 columns that stack on mobile), Video, Embed and Donate. The server checks every block value on save, publish and restore. Links must start with `https://`, `http://`, `mailto:`, `tel:`, `/` or `#`; rich text is cleaned to a short list of safe tags.

@@ -20,10 +20,10 @@ async function EditorLoader({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   await requireUser();
   const [page] = await getDb()
-    .select({ id: pages.id, title: pages.title, draft: pages.draft })
+    .select({ id: pages.id, kind: pages.kind, title: pages.title, draft: pages.draft })
     .from(pages)
     .where(eq(pages.id, id))
     .limit(1);
   if (!page) notFound();
-  return <PageEditor id={page.id} title={page.title} draft={page.draft} media={await resolvePageMedia(page.draft)} />;
+  return <PageEditor id={page.id} kind={page.kind} title={page.title} draft={page.draft} media={await resolvePageMedia(page.draft)} />;
 }

@@ -1,16 +1,29 @@
 "use client";
 
-import { type Data, Puck, useGetPuck } from "@puckeditor/core";
+import { createUsePuck, type Data, Puck, useGetPuck } from "@puckeditor/core";
 // Not puck.css: that one loads a font from Puck's CDN.
 import "@puckeditor/core/no-external.css";
 import Link from "next/link";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import type { MediaItem, MediaMap } from "@/media";
 import { pageConfig } from "@/puck/config";
+import { h1Warning } from "@/puck/headings";
 import { publishPage, saveDraft } from "../../actions";
 import { MediaFieldRender, RememberMediaContext } from "./media-field";
 
-export function PageEditor({ id, title, draft, media: initialMedia }: { id: string; title: string; draft: Data; media: MediaMap }) {
+export function PageEditor({
+  id,
+  kind,
+  title,
+  draft,
+  media: initialMedia,
+}: {
+  id: string;
+  kind: "page" | "post";
+  title: string;
+  draft: Data;
+  media: MediaMap;
+}) {
   // Puck copies a changed `metadata` prop into its store, so a picked image shows in the preview at once.
   const [media, setMedia] = useState(initialMedia);
   const metadata = useMemo(() => ({ media }), [media]);
@@ -20,7 +33,10 @@ export function PageEditor({ id, title, draft, media: initialMedia }: { id: stri
   );
   // Stable: publish re-renders this page (updateTag refreshes it), and a new override function remounts the
   // actions and loses their status.
-  const overrides = useMemo(() => ({ headerActions: () => <EditorActions id={id} />, fieldTypes: { media: MediaFieldRender } }), [id]);
+  const overrides = useMemo(
+    () => ({ headerActions: () => <EditorActions id={id} kind={kind} />, fieldTypes: { media: MediaFieldRender } }),
+    [id, kind],
+  );
   return (
     <RememberMediaContext value={remember}>
       <Puck config={pageConfig} data={draft} headerTitle={title} overrides={overrides} metadata={metadata} />
@@ -28,8 +44,12 @@ export function PageEditor({ id, title, draft, media: initialMedia }: { id: stri
   );
 }
 
+const usePuck = createUsePuck();
+
 // Replaces Puck's own "Publish" button. Both actions send the editor's current data.
-function EditorActions({ id }: { id: string }) {
+function EditorActions({ id, kind }: { id: string; kind: "page" | "post" }) {
+  const data = usePuck((s) => s.appState.data);
+  const warning = useMemo(() => h1Warning(data, kind), [data, kind]);
   const getPuck = useGetPuck();
   const [status, setStatus] = useState("");
   const [pending, startTransition] = useTransition();
@@ -72,6 +92,14 @@ function EditorActions({ id }: { id: string }) {
       <span role="status" aria-live="polite" className="max-w-md text-right text-sm empty:hidden">
         {status}
       </span>
+      {/* Always in the DOM so a screen reader announces a change. Advice only: it never blocks Save or Publish. */}
+      <p role="status" aria-live="polite" className="max-w-md text-right text-sm text-amber-900 empty:hidden">
+        {warning && (
+          <>
+            <strong>Warning:</strong> {warning}
+          </>
+        )}
+      </p>
     </div>
   );
 }
