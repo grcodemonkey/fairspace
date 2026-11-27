@@ -1,7 +1,7 @@
 import { getMenu } from "@/menu";
 import { MenuLink, SubMenu } from "./menu-link";
 
-const link = "inline-block py-2 hover:underline aria-[current=page]:font-semibold aria-[current=page]:underline";
+const link = "inline-block py-2 hover:underline aria-[current=page]:font-semibold aria-[current=page]:underline aria-[current=true]:font-semibold";
 
 // WAI "disclosure navigation menu with top-level links": each top item is a link; a separate toggle opens its children.
 // <details> gives the toggle its keyboard and expanded state with no client JS.
@@ -18,7 +18,7 @@ export async function SiteMenu() {
         <ul className="flex flex-col md:flex-row md:items-center md:gap-6">
           {items.map((item, i) => (
             <li key={i} className="relative md:flex md:items-center md:gap-1">
-              <MenuLink href={item.href} label={item.label} className={link} />
+              <MenuLink href={item.href} label={item.label} className={link} section={item.children.map((child) => child.href)} />
               {/* Inline under md: the toggle sits after the link and the children break to full rows below. */}
               {item.children.length > 0 && (
                 <SubMenu className="group inline md:block" hrefs={item.children.map((child) => child.href)}>

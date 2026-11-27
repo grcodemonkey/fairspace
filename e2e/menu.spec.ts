@@ -98,11 +98,26 @@ test("menu-keyboard-dropdown", async ({ page }) => {
   await expect(nav.getByRole("link", { name: "History" })).toBeVisible();
 });
 
-test("current-child-opens-dropdown", async ({ page }) => {
+test("current-child-marks-section-desktop", async ({ page }) => {
   await page.goto(`/${slugs[2]}`);
-  const history = page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "History" });
+  const nav = page.getByRole("navigation", { name: "Main" });
+  // An open dropdown would cover the page: it stays closed, and the top link marks the section.
+  await expect(nav.getByRole("link", { name: "Our work" })).toHaveAttribute("aria-current", "true");
+  await expect(nav.getByRole("link", { name: "History" })).toBeHidden();
+  await nav.locator("summary", { hasText: "More in Our work" }).click();
+  await expect(nav.getByRole("link", { name: "History" })).toHaveAttribute("aria-current", "page");
+});
+
+test("current-child-opens-dropdown-mobile", async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await context.newPage();
+  await page.goto(`/${slugs[2]}`);
+  const nav = page.getByRole("navigation", { name: "Main" });
+  await nav.getByText("Menu", { exact: true }).click();
+  const history = nav.getByRole("link", { name: "History" });
   await expect(history).toBeVisible();
   await expect(history).toHaveAttribute("aria-current", "page");
+  await context.close();
 });
 
 test("mobile-menu-opens", async ({ browser }) => {
