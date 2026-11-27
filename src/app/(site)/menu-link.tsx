@@ -44,7 +44,16 @@ function OpenOnCurrent({ hrefs, className, children }: SubMenuProps) {
   const ref = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
     // Same breakpoint as md and the .site-menu rule in globals.css. Under it the dropdown sits inside the closed panel.
-    if (current && matchMedia("(width < 48rem)").matches) ref.current!.open = true;
+    // An older browser without ::details-content keeps the "Menu" button on desktop too; there the dropdown still
+    // follows the width, not the panel, so it stays closed on desktop.
+    const mobile = matchMedia("(width < 48rem)");
+    // Also on a new page (leaving the section closes it) and on a resize past the breakpoint.
+    const sync = () => {
+      ref.current!.open = current && mobile.matches;
+    };
+    sync();
+    mobile.addEventListener("change", sync);
+    return () => mobile.removeEventListener("change", sync);
   }, [current]);
   return (
     <details ref={ref} className={className}>

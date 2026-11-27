@@ -1,7 +1,7 @@
 import { getMenu } from "@/menu";
 import { MenuLink, SubMenu } from "./menu-link";
 
-const link = "inline-block py-2 hover:underline aria-[current=page]:font-semibold aria-[current=page]:underline aria-[current=true]:font-semibold";
+const link = "inline-block py-2 hover:underline aria-[current=page]:font-semibold aria-[current=page]:underline aria-[current=true]:font-semibold aria-[current=true]:underline";
 
 // WAI "disclosure navigation menu with top-level links": each top item is a link; a separate toggle opens its children.
 // <details> gives the toggle its keyboard and expanded state with no client JS.

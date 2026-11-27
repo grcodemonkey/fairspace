@@ -100,12 +100,24 @@ test("menu-keyboard-dropdown", async ({ page }) => {
 
 test("current-child-marks-section-desktop", async ({ page }) => {
   await page.goto(`/${slugs[2]}`);
+  await page.waitForLoadState("networkidle"); // hydrated: the dropdown effect has run
   const nav = page.getByRole("navigation", { name: "Main" });
   // An open dropdown would cover the page: it stays closed, and the top link marks the section.
   await expect(nav.getByRole("link", { name: "Our work" })).toHaveAttribute("aria-current", "true");
   await expect(nav.getByRole("link", { name: "History" })).toBeHidden();
   await nav.locator("summary", { hasText: "More in Our work" }).click();
   await expect(nav.getByRole("link", { name: "History" })).toHaveAttribute("aria-current", "page");
+});
+
+test("current-dropdown-follows-resize", async ({ page }) => {
+  await page.goto(`/${slugs[2]}`);
+  await page.waitForLoadState("networkidle");
+  const dropdown = page.getByRole("navigation", { name: "Main" }).locator("li details");
+  await expect(dropdown).toHaveJSProperty("open", false);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(dropdown).toHaveJSProperty("open", true);
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await expect(dropdown).toHaveJSProperty("open", false);
 });
 
 test("current-child-opens-dropdown-mobile", async ({ browser }) => {

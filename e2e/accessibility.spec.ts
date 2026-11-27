@@ -86,17 +86,19 @@ test.beforeAll(async ({ browser, baseURL }) => {
 });
 
 test.afterAll(async ({ browser, baseURL }) => {
-  // Empty the menu through the save action: it expires the cached menu that menu.spec.ts expects to be gone.
-  const admin = await emptyMenuForm(browser, baseURL!);
-  await admin.getByRole("button", { name: "Save menu" }).click();
-  await expect(admin.getByRole("status")).toHaveText("Saved");
-  await admin.context().close();
-
-  await sql`delete from pages where slug = ${slug}`; // cascades to page_revisions
-  await sql`delete from media where id = ${FIXTURE_MEDIA_ID}`;
-  if (userIds.length) await sql`delete from users where id in ${sql(userIds)}`; // and to the sessions
-  await s3.send(new DeleteObjectCommand({ Bucket: process.env.S3_BUCKET, Key: mediaKey }));
-  await sql.end();
+  try {
+    // Empty the menu through the save action: it expires the cached menu that menu.spec.ts expects to be gone.
+    const admin = await emptyMenuForm(browser, baseURL!);
+    await admin.getByRole("button", { name: "Save menu" }).click();
+    await expect(admin.getByRole("status")).toHaveText("Saved");
+    await admin.context().close();
+  } finally {
+    await sql`delete from pages where slug = ${slug}`; // cascades to page_revisions
+    await sql`delete from media where id = ${FIXTURE_MEDIA_ID}`;
+    if (userIds.length) await sql`delete from users where id in ${sql(userIds)}`; // and to the sessions
+    await s3.send(new DeleteObjectCommand({ Bucket: process.env.S3_BUCKET, Key: mediaKey }));
+    await sql.end();
+  }
 });
 
 /** Runs axe and fails with one readable line per violation; the full JSON goes in the HTML report. */
@@ -129,6 +131,7 @@ for (const { colorScheme, width, viewport } of modes) {
     await page.emulateMedia({ colorScheme });
     await page.setViewportSize(viewport);
     await page.goto(`/${slug}`);
+    await page.waitForLoadState("networkidle"); // hydrated: the dropdown effect does not undo open()
     await expect(page.locator('main img[alt="A red bike"]').first()).toBeVisible();
     await expectNoViolations(page, testInfo, `all-blocks-${colorScheme}-${width}-menu-closed`);
     await open(page, width === "mobile");
@@ -139,7 +142,17 @@ for (const { colorScheme, width, viewport } of modes) {
     await page.emulateMedia({ colorScheme });
     await page.setViewportSize(viewport);
     await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await expect(page.getByText("An open-source site builder for nonprofits.")).toBeVisible(); // no published home page
     await expectNoViolations(page, testInfo, `welcome-${colorScheme}-${width}`);
+    if (width === "mobile") {
+      // The Menu panel open with its dropdown closed (on the all-blocks page the current child opens it).
+      const nav = page.getByRole("navigation", { name: "Main" });
+      await nav.locator("summary", { hasText: "Menu" }).click();
+      await expect(nav.getByRole("link", { name: "Programs" })).toBeVisible();
+      await expect(nav.locator("li details")).toHaveJSProperty("open", false);
+      await expectNoViolations(page, testInfo, `welcome-${colorScheme}-${width}-menu-open`);
+    }
   });
 }
 
