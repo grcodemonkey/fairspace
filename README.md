@@ -4,6 +4,8 @@ An open-source site builder for nonprofits. One site per install.
 
 ## Deploy to Vercel
 
+New to this? Follow the step-by-step [install guide](docs/install.md).
+
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fgrcodemonkey%2Ffairspace&project-name=fairspace&repository-name=fairspace&stores=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%2C%22protocol%22%3A%22storage%22%7D%5D&env=AUTH_SECRET%2CEMAIL_SERVER%2CEMAIL_FROM%2CADMIN_EMAIL%2CS3_REGION%2CS3_BUCKET%2CS3_ACCESS_KEY_ID%2CS3_SECRET_ACCESS_KEY&envDefaults=%7B%22S3_REGION%22%3A%22auto%22%7D&envDescription=Sign-in%20secret%2C%20SMTP%20sender%20%28for%20example%20Resend%29%2C%20first%20admin%20email%2C%20and%20an%20S3-compatible%20bucket%20%28for%20example%20Cloudflare%20R2%29.&envLink=https%3A%2F%2Fgithub.com%2Fgrcodemonkey%2Ffairspace%23deploy-to-vercel)
 
 The button copies this repository to your GitHub account, creates a Vercel project, and creates a Neon Postgres database through the Vercel Marketplace. Neon sets `DATABASE_URL` for you. Before you click, have an S3-compatible bucket (for example Cloudflare R2) and an SMTP sender (for example Resend) ready. Vercel asks for these values:
@@ -11,7 +13,7 @@ The button copies this repository to your GitHub account, creates a Vercel proje
 | Variable | Value |
 | --- | --- |
 | `AUTH_SECRET` | Generate with `openssl rand -base64 32`. See [Sign in](#sign-in). |
-| `EMAIL_SERVER` | SMTP URL, for example `smtp://resend:<API_KEY>@smtp.resend.com:465`. |
+| `EMAIL_SERVER` | SMTP URL, for example `smtps://resend:<API_KEY>@smtp.resend.com:465`. |
 | `EMAIL_FROM` | Sender address, for example `Fairspace <noreply@example.org>`. |
 | `ADMIN_EMAIL` | Email of the first admin. |
 | `S3_REGION` | Bucket region. R2: `auto`. |
@@ -57,7 +59,7 @@ Set these in `.env.local` (see `.env.example`):
 | --- | --- |
 | `AUTH_SECRET` | Session secret. Generate with `openssl rand -base64 32`. |
 | `AUTH_URL` | Public site URL. Magic links and absolute share URLs (canonical, `og:image`) use it. Required on self-hosted installs, at build time and at run time. Optional on Vercel (falls back to the production URL). |
-| `EMAIL_SERVER` | SMTP URL. Local: `smtp://localhost:1025`. Resend: `smtp://resend:<API_KEY>@smtp.resend.com:465`. |
+| `EMAIL_SERVER` | SMTP URL. Local: `smtp://localhost:1025`. Resend: `smtps://resend:<API_KEY>@smtp.resend.com:465`. |
 | `EMAIL_FROM` | Sender address, for example `Fairspace <noreply@example.org>`. |
 | `ADMIN_EMAIL` | Email of the first admin. Used only while no admin exists. |
 
