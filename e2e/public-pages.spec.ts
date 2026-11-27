@@ -47,7 +47,7 @@ test.afterAll(async () => {
 test("published-page-renders", async ({ page }) => {
   const response = await page.goto(`/${published}`);
   expect(response?.status()).toBe(200);
-  await expect(page).toHaveTitle(`Published title ${run}`);
+  await expect(page).toHaveTitle(`Published title ${run} · Fairspace`);
   await expect(page.getByText(`Draft title ${run}`)).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Fairspace" })).toBeVisible();
 });

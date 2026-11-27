@@ -10,6 +10,7 @@ import { media } from "@/db/schema";
 import { requireUser } from "@/guards";
 import { ALLOWED_TYPES, ALT_MAX, MAX_BYTES, type MediaItem, SNIFF_BYTES, sniffType, validateUpload } from "@/media";
 import { findMediaUsage, listMedia, mediaTag, sweepPendingUploads } from "@/media-library";
+import { isSiteLogo, SITE_SETTINGS_TAG } from "@/site-settings";
 import { getStorage, isNotFound } from "@/storage";
 
 const UPLOAD_URL_SECONDS = 300;
@@ -132,7 +133,7 @@ export async function updateAltAction(_: ActionState, formData: FormData): Promi
   return {};
 }
 
-/** Editors delete their own uploads; admins delete any. Refused while the draft or the live version of a page uses the file. */
+/** Editors delete their own uploads; admins delete any. Refused while the draft or the live version of a page, or the site logo, uses the file. */
 export async function deleteMediaAction(_: ActionState, formData: FormData): Promise<ActionState> {
   const user = await requireUser();
   const db = getDb();
@@ -146,11 +147,14 @@ export async function deleteMediaAction(_: ActionState, formData: FormData): Pro
   if (pages.length) {
     return { error: `Used on: ${pages.map((p) => p.title).join(", ")}. Remove it from these pages first.` };
   }
+  if (await isSiteLogo(row.id)) return { error: "Used as the site logo. Change the logo in Settings first." };
   await db.delete(media).where(eq(media.id, row.id));
   // Row first: a failed object delete leaves only an unreferenced object, which is safe.
   const { client, bucket } = getStorage();
   await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: row.key })).catch(() => {});
   updateTag(mediaTag(row.id));
+  // A logo set between the check and the delete becomes null (FK); the cached brand must not keep its URL.
+  updateTag(SITE_SETTINGS_TAG);
   refresh();
   return {};
 }

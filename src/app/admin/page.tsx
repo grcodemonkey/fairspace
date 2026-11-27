@@ -34,11 +34,16 @@ async function SignedInAs() {
       <Link href="/admin/media" className="underline">
         Media
       </Link>
-      {/* A hint only: /admin/users runs its own guard. */}
+      {/* A hint only: /admin/users and /admin/settings run their own guards. */}
       {user.role === "admin" && (
-        <Link href="/admin/users" className="underline">
-          Users
-        </Link>
+        <>
+          <Link href="/admin/users" className="underline">
+            Users
+          </Link>
+          <Link href="/admin/settings" className="underline">
+            Settings
+          </Link>
+        </>
       )}
       <form action={signOutAction}>
         <button type="submit" className="border rounded px-3 py-2 font-semibold">
