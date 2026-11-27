@@ -30,7 +30,15 @@ export async function goLive(tx: Tx, pageId: string, data: Data, userId: string 
   const title = typeof data.root.props?.title === "string" ? data.root.props.title.trim() : "";
   await tx
     .update(pages)
-    .set({ publishedRevisionId: revision.id, draft: data, ...(title && { title }), updatedAt: new Date(), updatedBy: userId })
+    .set({
+      publishedRevisionId: revision.id,
+      // Only the first publish sets it: republish and restore keep the date. Pages get it too; only posts show it.
+      publishedAt: sql`coalesce(${pages.publishedAt}, clock_timestamp())`,
+      draft: data,
+      ...(title && { title }),
+      updatedAt: new Date(),
+      updatedBy: userId,
+    })
     .where(eq(pages.id, pageId));
   return revision.id;
 }

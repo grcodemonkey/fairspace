@@ -74,6 +74,9 @@ export const verificationTokens = pgTable(
   (verificationToken) => [primaryKey({ columns: [verificationToken.identifier, verificationToken.token] })],
 );
 
+// A page is served at /<slug>, a news post at /news/<slug> (publicPath in src/puck/slug.ts).
+export const pageKind = pgEnum("page_kind", ["page", "post"]);
+
 // A CMS page. The editor saves only to `draft`, so a save never changes the live page.
 export const pages = pgTable(
   "pages",
@@ -81,11 +84,16 @@ export const pages = pgTable(
     id: text("id")
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
+    // Set at create and never changed. Slugs stay unique across both kinds (one namespace).
+    kind: pageKind("kind").notNull().default("page"),
     slug: text("slug").notNull().unique(),
     title: text("title").notNull(),
     draft: jsonb("draft").$type<Data>().notNull(),
     // The live version: publish and restore set it, unpublish clears it; null means the page is not live.
     publishedRevisionId: text("publishedRevisionId"),
+    // The first publish sets it (goLive); republish, restore and unpublish keep it. Editors may move a post's date
+    // to today or earlier (setPostDate). Metadata, not versioned in page_revisions.
+    publishedAt: timestamp("publishedAt", { mode: "date", withTimezone: true }),
     createdAt: timestamp("createdAt", { mode: "date", withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updatedAt", { mode: "date", withTimezone: true }).notNull().defaultNow(),
     updatedBy: text("updatedBy").references(() => users.id, { onDelete: "set null" }),

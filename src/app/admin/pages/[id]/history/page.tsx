@@ -5,7 +5,8 @@ import { Suspense } from "react";
 import { getDb } from "@/db";
 import { pageRevisions, pages, users } from "@/db/schema";
 import { requireUser } from "@/guards";
-import { RestoreButton, UnpublishButton } from "./history-buttons";
+import { publicPath } from "@/puck/slug";
+import { PostDateForm, RestoreButton, UnpublishButton } from "./history-buttons";
 
 const HISTORY_LIMIT = 200;
 const formatDate = (date: Date) => `${date.toISOString().slice(0, 16).replace("T", " ")} UTC`;
@@ -25,7 +26,14 @@ async function History({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requireUser();
   const [page] = await getDb()
-    .select({ id: pages.id, title: pages.title, slug: pages.slug, publishedRevisionId: pages.publishedRevisionId })
+    .select({
+      id: pages.id,
+      kind: pages.kind,
+      title: pages.title,
+      slug: pages.slug,
+      publishedAt: pages.publishedAt,
+      publishedRevisionId: pages.publishedRevisionId,
+    })
     .from(pages)
     .where(eq(pages.id, id));
   if (!page) notFound();
@@ -44,7 +52,7 @@ async function History({ params }: { params: Promise<{ id: string }> }) {
     // shortcut: only the latest 200 revisions; add paging if a page ever needs older ones in the UI.
     .limit(HISTORY_LIMIT);
   const isAdmin = user.role === "admin";
-  const href = page.slug === "home" ? "/" : `/${page.slug}`;
+  const href = publicPath(page.kind, page.slug);
 
   return (
     <div className="flex flex-col gap-4">
@@ -53,6 +61,11 @@ async function History({ params }: { params: Promise<{ id: string }> }) {
         <Link href={`/admin/pages/${page.id}/edit`} className="underline">
           Back to the editor
         </Link>
+        {page.kind === "post" && (
+          <Link href="/admin/news" className="underline">
+            Back to News
+          </Link>
+        )}
         {page.publishedRevisionId ? (
           <>
             <span>
@@ -67,6 +80,13 @@ async function History({ params }: { params: Promise<{ id: string }> }) {
           <span>Not published</span>
         )}
       </div>
+      {page.kind === "post" && (
+        <PostDateForm
+          id={page.id}
+          date={page.publishedAt?.toISOString().slice(0, 10) ?? ""}
+          max={new Date().toISOString().slice(0, 10)}
+        />
+      )}
       {revisions.length === HISTORY_LIMIT && <p>Showing the latest {HISTORY_LIMIT} revisions.</p>}
       {revisions.length === 0 ? (
         <p>No revisions yet. Publish the page from the editor.</p>

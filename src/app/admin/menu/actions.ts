@@ -1,9 +1,9 @@
 "use server";
 
-import { sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { updateTag } from "next/cache";
 import { getDb } from "@/db";
-import { menuItems } from "@/db/schema";
+import { menuItems, pages } from "@/db/schema";
 import { requireAdmin } from "@/guards";
 import { MENU_TAG, MenuError, parseMenu } from "@/menu";
 
@@ -28,6 +28,16 @@ export async function saveMenu(input: unknown): Promise<{ ok: true } | { error: 
       ...children.map((child, i) => ({ parentId: id, position: i, label: child.label, pageId: child.pageId, url: child.url })),
     ];
   });
+  // The picker lists pages only; getMenu also hides a post item, as a backstop. Kind never changes, so no lock.
+  const pageIds = rows.flatMap((row) => (row.pageId ? [row.pageId] : []));
+  if (pageIds.length) {
+    const [post] = await getDb()
+      .select({ id: pages.id })
+      .from(pages)
+      .where(and(inArray(pages.id, pageIds), eq(pages.kind, "post")))
+      .limit(1);
+    if (post) return { error: "Link a page, or use the post URL." };
+  }
   try {
     await getDb().transaction(async (tx) => {
       // Two saves at once would each delete only the old rows and both insert; the lock runs them one after the other.

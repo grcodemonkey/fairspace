@@ -1,14 +1,14 @@
 import { expect, test } from "vitest";
 import { pageMetadata } from "./seo";
 
-const base = { slug: "about", image: null, siteUrl: "https://example.org", siteName: "Riverside", defaultDescription: null };
+const base = { path: "/about", image: null, siteUrl: "https://example.org", siteName: "Riverside", defaultDescription: null };
 
 test("og-title-plain-with-site-name", () => {
   expect(pageMetadata({ ...base, props: { title: "About" } }).openGraph).toMatchObject({ title: "About", siteName: "Riverside" });
 });
 
 test("home-canonical-is-root", () => {
-  expect(pageMetadata({ ...base, slug: "home", props: {} }).alternates?.canonical).toBe("/");
+  expect(pageMetadata({ ...base, path: "/", props: {} }).alternates?.canonical).toBe("/");
   expect(pageMetadata({ ...base, props: {} }).alternates?.canonical).toBe("/about");
 });
 
@@ -40,4 +40,12 @@ test("default-description-fills-empty", () => {
   expect(meta.description).toBe("Site wide");
   expect(meta.openGraph).toMatchObject({ description: "Site wide" });
   expect(pageMetadata({ ...base, defaultDescription: "Site wide", props: { description: "Own" } }).description).toBe("Own");
+});
+
+test("post-article-meta", () => {
+  const publishedTime = new Date("2026-11-20T00:00:00Z");
+  const meta = pageMetadata({ ...base, path: "/news/x", publishedTime, props: {} });
+  expect(meta.alternates?.canonical).toBe("/news/x");
+  expect(meta.openGraph).toMatchObject({ type: "article", url: "/news/x", publishedTime: "2026-11-20T00:00:00.000Z" });
+  expect(pageMetadata({ ...base, props: {} }).openGraph).toMatchObject({ type: "website" });
 });

@@ -93,6 +93,24 @@ test("invalid-menu-refused", async () => {
   expect(updateTag).not.toHaveBeenCalled();
 });
 
+test("post-item-refused", async () => {
+  signedInAs("admin");
+  const [post] = await getDb()
+    .insert(pages)
+    .values({ kind: "post", title: "News", slug: `menu-post-${run}`, draft: { root: { props: {} }, content: [] } })
+    .returning();
+  try {
+    const child = { label: "Post", pageId: post.id, url: null };
+    await expect(saveMenu([{ label: "Top", pageId: null, url: "/", children: [child] }])).resolves.toEqual({
+      error: "Link a page, or use the post URL.",
+    });
+    expect(await rows()).toMatchObject([{ label: "Old" }]);
+    expect(updateTag).not.toHaveBeenCalled();
+  } finally {
+    await getDb().delete(pages).where(eq(pages.id, post.id));
+  }
+});
+
 test("unknown-page-refused", async () => {
   signedInAs("admin");
   await expect(saveMenu([{ label: "Gone", pageId: `no-such-page-${run}`, url: null, children: [] }])).resolves.toEqual({

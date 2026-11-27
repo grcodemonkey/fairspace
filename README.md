@@ -71,6 +71,14 @@ Video, Embed and Donate take a page link. Editors never paste embed code or HTML
 
 Video and Embed frames are sandboxed and load only when a visitor scrolls near them. The site sends a `Content-Security-Policy: frame-src` header that allows frames only from these sites. To add a site, change `src/puck/embed-providers.ts`.
 
+## News posts
+
+Admins and editors create news posts at `/admin/news`. A post uses the same editor, blocks, publish, history, restore and unpublish as a page. A published post shows at `/news/<slug>` with its title and publish date. Pages and posts share one set of slugs, and no page can use the slug `news`.
+
+The first publish sets the publish date; a republish, restore or unpublish keeps it. Editors and admins can change the date on the post's history page, to today or an earlier day (no scheduling). Dates are UTC days.
+
+The post's Description is its summary, and its Social image is its featured image. The menu page picker lists pages only; to put a post in the menu, use its URL.
+
 ## Menu
 
 Admins edit the site menu at `/admin/menu`. The menu has two levels: top items, and child items under a top item. Every item links to a page or to a URL (the same link rule as blocks). A top item with children shows as its link plus a separate button that opens the children. A page link follows the page when its slug changes, and goes away when the page is deleted. A link to a page that is not published does not show on the public site; it shows when the page is published. "Save menu" replaces the whole menu (the last save wins). At most 50 items, and labels of at most 60 characters.

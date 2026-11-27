@@ -8,7 +8,7 @@ import { getDb } from "@/db";
 import { pageRevisions, pages, users } from "@/db/schema";
 import { allBlocksFixture } from "@/puck/all-blocks.fixture";
 import { getPublishedPage, pageTag } from "@/puck/published";
-import { createPage, publishPage, restoreRevision, saveDraft, unpublishPage } from "./actions";
+import { createPage, publishPage, restoreRevision, saveDraft, setPostDate, unpublishPage } from "./actions";
 
 vi.mock("@/auth", () => ({ auth: vi.fn() }));
 // updateTag and refresh work only inside a Next server action; "use cache" is a no-op outside Next.
@@ -256,7 +256,7 @@ test("publish-goes-live", async () => {
   expect(revision).toMatchObject({ data: doc("Live title"), createdBy: editorId });
   const saved = await reload(page.id);
   expect(saved).toMatchObject({ publishedRevisionId: revision.id, draft: doc("Live title"), title: "Live title" });
-  expect(await getPublishedPage(page.slug)).toEqual(doc("Live title"));
+  expect((await getPublishedPage(page.slug))?.data).toEqual(doc("Live title"));
   expect(updateTag).toHaveBeenCalledWith(pageTag(page.slug));
 });
 
@@ -381,4 +381,86 @@ test("unpublish-signed-out-redirects", async () => {
     digest: expect.stringMatching(REDIRECT_TO_SIGN_IN),
   });
   expect(await reload(page.id)).toEqual(page);
+});
+
+const postForm = (title: string, slug: string, kind = "post") => {
+  const f = form(title, slug);
+  f.set("kind", kind);
+  return f;
+};
+async function insertPost(name: string) {
+  const [row] = await getDb()
+    .insert(pages)
+    .values({ kind: "post", title: name, slug: slug(name), draft: doc(name) })
+    .returning();
+  return row;
+}
+const dateForm = (id: string, date: string) => {
+  const f = idForm(id);
+  f.set("date", date);
+  return f;
+};
+
+test("create-post-kind", async () => {
+  signedInAsEditor();
+  const s = slug("new-post");
+  await expect(createPage({}, postForm("News", s))).rejects.toMatchObject({ digest: expect.stringMatching(REDIRECT_TO_EDITOR) });
+  expect((await getDb().select().from(pages).where(eq(pages.slug, s)))[0]).toMatchObject({ kind: "post", publishedAt: null });
+  const bad = slug("bad-kind");
+  await expect(createPage({}, postForm("x", bad, "event"))).resolves.toMatchObject({ error: "Invalid request." });
+  expect(await getDb().select().from(pages).where(eq(pages.slug, bad))).toHaveLength(0);
+});
+
+test("news-slug-reserved", async () => {
+  signedInAsEditor();
+  await expect(createPage({}, form("News", "news"))).resolves.toMatchObject({ error: "That slug is reserved." });
+  await expect(createPage({}, postForm("News", "news"))).resolves.toMatchObject({ error: "That slug is reserved." });
+  await expect(createPage({}, postForm("Home", "home"))).resolves.toMatchObject({ error: "That slug is reserved." });
+});
+
+test("slug-shared-namespace", async () => {
+  signedInAsEditor();
+  const page = await insertPage("shared");
+  await expect(createPage({}, postForm("Post", page.slug))).resolves.toMatchObject({ error: "That slug is in use." });
+});
+
+test("publish-date-first-only", async () => {
+  signedInAsEditor();
+  const post = await insertPost("first-date");
+  await publishPage(post.id, doc("One"));
+  const first = (await reload(post.id)).publishedAt;
+  expect(first).toBeInstanceOf(Date);
+  await publishPage(post.id, doc("Two"));
+  expect((await reload(post.id)).publishedAt).toEqual(first);
+  const [one] = await revisionsOf(post.id);
+  signedInAsAdmin();
+  await expect(restoreRevision({}, restoreForm(post.id, one.id))).resolves.toEqual({ message: "Restored" });
+  expect((await reload(post.id)).publishedAt).toEqual(first);
+  await unpublishPage({}, idForm(post.id));
+  expect((await reload(post.id)).publishedAt).toEqual(first);
+});
+
+test("set-post-date", async () => {
+  const post = await insertPost("set-date");
+  await expect(setPostDate({}, dateForm(post.id, "2026-01-15"))).rejects.toMatchObject({
+    digest: expect.stringMatching(REDIRECT_TO_SIGN_IN),
+  });
+  signedInAsEditor();
+  await expect(setPostDate({}, dateForm(post.id, "2026-01-15"))).resolves.toEqual({ message: "Saved" });
+  expect((await reload(post.id)).publishedAt).toEqual(new Date("2026-01-15T00:00:00Z"));
+  expect(updateTag).toHaveBeenCalledWith(pageTag(post.slug));
+  const today = new Date().toISOString().slice(0, 10);
+  await expect(setPostDate({}, dateForm(post.id, today))).resolves.toEqual({ message: "Saved" });
+  expect((await reload(post.id)).publishedAt).toEqual(new Date(`${today}T00:00:00Z`));
+  await setPostDate({}, dateForm(post.id, "2026-01-15"));
+  const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+  await expect(setPostDate({}, dateForm(post.id, tomorrow))).resolves.toEqual({ error: "The date cannot be after today." });
+  for (const bad of ["2026-02-30", "15/01/2026", ""])
+    await expect(setPostDate({}, dateForm(post.id, bad))).resolves.toEqual({ error: "Enter a valid date." });
+  const page = await insertPage("not-a-post");
+  await expect(setPostDate({}, dateForm(page.id, "2026-01-15"))).resolves.toEqual({
+    error: "Only a news post has a publish date.",
+  });
+  expect((await reload(page.id)).publishedAt).toBeNull();
+  expect((await reload(post.id)).publishedAt).toEqual(new Date("2026-01-15T00:00:00Z"));
 });
