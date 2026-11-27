@@ -52,7 +52,8 @@ test("news-order-filter-and-paging", async () => {
 });
 
 test("rss-hostile-text-parses", () => {
-  const hostile = `Tom & "Jerry's" <b>bold</b> ]]> end\u0001\u000B￿`;
+  // Lone surrogates are dropped; a valid pair (an emoji) stays.
+  const hostile = `Tom & "Jerry's" <b>bold</b> ]]> end\u0001\u000B\uFFFE\uFFFF\uD800x\uDC00 \uD83D\uDE00`;
   const xml = buildRss({
     siteName: "Riverside & Co <news>",
     description: hostile,
@@ -62,7 +63,7 @@ test("rss-hostile-text-parses", () => {
   const doc = new DOMParser().parseFromString(xml, "application/xml");
   expect(doc.querySelector("parsererror")).toBeNull();
   const item = doc.querySelector("item")!;
-  expect(item.querySelector("title")?.textContent).toBe(`Tom & "Jerry's" <b>bold</b> ]]> end`);
+  expect(item.querySelector("title")?.textContent).toBe(`Tom & "Jerry's" <b>bold</b> ]]> endx 😀`);
   expect(item.querySelector("link")?.textContent).toBe("https://example.org/news/first-post");
   expect(item.querySelector("guid")?.getAttribute("isPermaLink")).toBe("true");
   expect(item.querySelector("pubDate")?.textContent).toBe("Fri, 20 Nov 2026 15:00:00 GMT");

@@ -19,6 +19,7 @@ const s3 = new S3Client({
 const run = crypto.randomUUID().slice(0, 8);
 const slug = `e2e-a11y-${run}`;
 const postSlug = `e2e-a11y-news-${run}`;
+let postId = "";
 const mediaKey = `media/${FIXTURE_MEDIA_ID}.png`;
 const userIds: string[] = [];
 const modes = [
@@ -59,14 +60,17 @@ test.beforeAll(async ({ browser, baseURL }) => {
     values (${crypto.randomUUID()}, ${page.id}, ${sql.json(data)}) returning id`;
   await sql`update pages set "publishedRevisionId" = ${rev.id} where id = ${page.id}`;
 
-  // One post for the /news scan, with the fixture image. Inserted in SQL, so it shows only if /news is not cached
-  // yet: this spec runs first on a fresh server.
+  // One post for the /news scan, with the fixture image: a draft in SQL, published through the editor so the news
+  // cache tag expires. The 2099 date keeps it on page 1.
   const postData = { root: { props: { title: `A11y news ${run}`, description: "A short summary.", socialImage: FIXTURE_MEDIA_ID } }, content: [] };
-  const [post] = await sql`insert into pages (id, kind, title, slug, draft, "publishedAt")
+  [{ id: postId }] = await sql`insert into pages (id, kind, title, slug, draft, "publishedAt")
     values (${crypto.randomUUID()}, 'post', 'A11y news', ${postSlug}, ${sql.json(postData)}, '2099-01-01') returning id`;
-  const [postRev] = await sql`insert into page_revisions (id, "pageId", data)
-    values (${crypto.randomUUID()}, ${post.id}, ${sql.json(postData)}) returning id`;
-  await sql`update pages set "publishedRevisionId" = ${postRev.id} where id = ${post.id}`;
+
+  const editor = await emptyMenuForm(browser, baseURL!); // only for its signed-in admin; the menu is not saved here
+  await editor.goto(`/admin/pages/${postId}/edit`);
+  await editor.getByRole("button", { name: "Publish" }).click();
+  await expect(editor.getByRole("status").filter({ hasText: /^Published$/ })).toBeVisible();
+  await editor.context().close();
 
   // Two URL items; the second has one child: this page, so the "current child" state is scanned too.
   const admin = await emptyMenuForm(browser, baseURL!);
@@ -95,6 +99,13 @@ test.afterAll(async ({ browser, baseURL }) => {
     const admin = await emptyMenuForm(browser, baseURL!);
     await admin.getByRole("button", { name: "Save menu" }).click();
     await expect(admin.getByRole("status")).toHaveText("Saved");
+    if (postId) {
+      // Unpublish through the history page: it expires the news cache, so later specs do not see the deleted post.
+      await admin.goto(`/admin/pages/${postId}/history`);
+      admin.once("dialog", (dialog) => dialog.accept());
+      await admin.getByRole("button", { name: "Unpublish" }).click();
+      await expect(admin.getByText("Not published")).toBeVisible();
+    }
     await admin.context().close();
   } finally {
     await sql`delete from pages where slug in (${slug}, ${postSlug})`; // cascades to page_revisions

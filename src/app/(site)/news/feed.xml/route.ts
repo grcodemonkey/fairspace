@@ -16,5 +16,8 @@ export async function GET() {
     base,
     posts,
   });
-  return new Response(xml, { headers: { "Content-Type": "application/rss+xml; charset=utf-8" } });
+  return new Response(xml, {
+    // Readers poll often; 5 minutes in shared caches is fresh enough for news.
+    headers: { "Content-Type": "application/rss+xml; charset=utf-8", "Cache-Control": "public, max-age=300" },
+  });
 }

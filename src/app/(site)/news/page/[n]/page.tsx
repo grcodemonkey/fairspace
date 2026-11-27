@@ -16,7 +16,8 @@ export function generateStaticParams() {
   return [{ n: "_" }];
 }
 
-const PAGE_NUMBER = /^[1-9]\d{0,3}$/;
+// At most 999: each page number is its own cache entry, so a crawler cannot fill the cache with endless numbers.
+const PAGE_NUMBER = /^[1-9]\d{0,2}$/;
 const pagePath = (n: number) => (n === 1 ? "/news" : `/news/page/${n}`);
 
 type Props = PageProps<"/news/page/[n]">;
