@@ -20,8 +20,9 @@ export function BrandForm({ settings }: { settings: SiteSettings }) {
       <label htmlFor={id}>{label}</label>
       <div className="flex items-center gap-3">
         <input id={id} name={id} type="color" value={value} onChange={(e) => set(e.target.value)} className="h-10 w-16" />
-        {/* A preview of the button and a link on that scheme's page background. */}
-        <span className="flex items-center gap-3 rounded border px-3 py-2" style={{ background }}>
+        {/* A preview of the button and a link on that scheme's page background. It shows a refused low-contrast
+            color on purpose, so the axe scan skips it (#53). */}
+        <span data-axe-skip className="flex items-center gap-3 rounded border px-3 py-2" style={{ background }}>
           <span className="rounded px-2 py-1 font-semibold" style={{ background: value, color: onColor(value) }}>
             Button
           </span>
@@ -66,7 +67,7 @@ export function BrandForm({ settings }: { settings: SiteSettings }) {
       <button type="submit" disabled={pending} className="border rounded px-3 py-2 font-semibold">
         Save brand
       </button>
-      <p role="status" className={state.error ? "text-red-700" : ""}>
+      <p role="status" className={state.error ? "text-danger" : ""}>
         {state.error ?? state.message}
       </p>
     </form>

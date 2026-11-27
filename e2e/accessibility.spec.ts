@@ -1,9 +1,9 @@
 import AxeBuilder from "@axe-core/playwright";
 import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { type Browser, expect, type Page, test, type TestInfo } from "@playwright/test";
+import { type Browser, expect, type Page, test } from "@playwright/test";
 import postgres from "postgres";
 import { allBlocksFixture, FIXTURE_MEDIA_ID } from "../src/puck/all-blocks.fixture";
-import { signInAs } from "./helpers";
+import { expectNoViolations, PNG, signInAs } from "./helpers";
 
 // #17: axe (WCAG 2.2 AA) on a page with every block and on the welcome page, light and dark, desktop and mobile,
 // menu closed and open. The menu is site-wide: it is saved and emptied through /admin/menu, so the cache tag expires.
@@ -20,12 +20,6 @@ const run = crypto.randomUUID().slice(0, 8);
 const slug = `e2e-a11y-${run}`;
 const mediaKey = `media/${FIXTURE_MEDIA_ID}.png`;
 const userIds: string[] = [];
-// A 16×16 red PNG.
-const PNG = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR4nGO4IydHEmIY1TCqYfhqAACaMxgQdGu1YAAAAABJRU5ErkJggg==",
-  "base64",
-);
-const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 const modes = [
   { colorScheme: "light", width: "desktop", viewport: { width: 1440, height: 900 } },
   { colorScheme: "dark", width: "desktop", viewport: { width: 1440, height: 900 } },
@@ -101,17 +95,8 @@ test.afterAll(async ({ browser, baseURL }) => {
   }
 });
 
-/** Runs axe and fails with one readable line per violation; the full JSON goes in the HTML report. */
-async function expectNoViolations(page: Page, testInfo: TestInfo, name: string) {
-  // Third-party frames (YouTube, Google Forms) are not ours; embed-frame-titles checks their titles instead.
-  const { violations } = await new AxeBuilder({ page }).withTags(TAGS).exclude("main iframe").analyze();
-  await testInfo.attach(`axe-${name}.json`, { body: JSON.stringify(violations, null, 2), contentType: "application/json" });
-  const report = violations
-    .map((v) => `${v.id} (${v.impact}): ${v.help} — ${v.nodes.length} nodes: ${v.nodes.slice(0, 3).map((n) => n.target.join(" ")).join(", ")}\n  ${v.helpUrl}`)
-    .join("\n");
-  // Soft: every scan in the test runs, so one CI run lists every rule that fails.
-  expect.soft(violations.map((v) => v.id), `axe ${name}:\n${report}`).toEqual([]);
-}
+// Third-party frames (YouTube, Google Forms) are not ours; embed-frame-titles checks their titles instead.
+const scan = (page: Page) => new AxeBuilder({ page }).exclude("main iframe");
 
 async function open(page: Page, mobile: boolean) {
   const nav = page.getByRole("navigation", { name: "Main" });
@@ -133,9 +118,9 @@ for (const { colorScheme, width, viewport } of modes) {
     await page.goto(`/${slug}`);
     await page.waitForLoadState("networkidle"); // hydrated: the dropdown effect does not undo open()
     await expect(page.locator('main img[alt="A red bike"]').first()).toBeVisible();
-    await expectNoViolations(page, testInfo, `all-blocks-${colorScheme}-${width}-menu-closed`);
+    await expectNoViolations(scan(page), testInfo, `all-blocks-${colorScheme}-${width}-menu-closed`);
     await open(page, width === "mobile");
-    await expectNoViolations(page, testInfo, `all-blocks-${colorScheme}-${width}-menu-open`);
+    await expectNoViolations(scan(page), testInfo, `all-blocks-${colorScheme}-${width}-menu-open`);
   });
 
   test(`axe-welcome-${colorScheme}-${width}`, async ({ page }, testInfo) => {
@@ -144,14 +129,14 @@ for (const { colorScheme, width, viewport } of modes) {
     await page.goto("/");
     await page.waitForLoadState("networkidle");
     await expect(page.getByText("An open-source site builder for nonprofits.")).toBeVisible(); // no published home page
-    await expectNoViolations(page, testInfo, `welcome-${colorScheme}-${width}`);
+    await expectNoViolations(scan(page), testInfo, `welcome-${colorScheme}-${width}`);
     if (width === "mobile") {
       // The Menu panel open with its dropdown closed (on the all-blocks page the current child opens it).
       const nav = page.getByRole("navigation", { name: "Main" });
       await nav.locator("summary", { hasText: "Menu" }).click();
       await expect(nav.getByRole("link", { name: "Programs" })).toBeVisible();
       await expect(nav.locator("li details")).toHaveJSProperty("open", false);
-      await expectNoViolations(page, testInfo, `welcome-${colorScheme}-${width}-menu-open`);
+      await expectNoViolations(scan(page), testInfo, `welcome-${colorScheme}-${width}-menu-open`);
     }
   });
 }

@@ -155,7 +155,7 @@ Public pages show a save at once. The Puck editor preview keeps the default colo
 | `pnpm db:generate` | Generate a migration from `src/db/schema.ts` |
 | `pnpm db:migrate` | Apply migrations to the dev database |
 | `pnpm test` | Unit tests (Vitest); needs `pnpm db:up` |
-| `pnpm e2e` | End-to-end tests (Playwright; builds and starts the app). Also runs the axe check (WCAG 2.2 AA) on every block, light and dark, desktop and mobile |
+| `pnpm e2e` | End-to-end tests (Playwright; builds and starts the app). Also runs the axe check (WCAG 2.2 AA) on every block, light and dark, desktop and mobile, and on every admin and sign-in page, light and dark (in the page editor only the `[data-fairspace]` parts, not Puck's own UI) |
 
 ## License
 

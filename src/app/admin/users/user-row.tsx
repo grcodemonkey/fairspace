@@ -37,7 +37,7 @@ export function UserRow({ user }: { user: User }) {
             </button>
           </form>
         </div>
-        <p aria-live="polite" className="text-red-700">
+        <p aria-live="polite" className="text-danger">
           {error}
         </p>
       </td>

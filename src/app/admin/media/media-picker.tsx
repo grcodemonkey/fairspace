@@ -47,7 +47,8 @@ export function MediaPicker({
   };
 
   return (
-    <div className="flex flex-col gap-2 items-start">
+    // data-fairspace: in the page editor, the axe scan covers only our parts, not Puck's own UI (#53).
+    <div data-fairspace className="flex flex-col gap-2 items-start">
       <span className="font-semibold">{label}</span>
       {current ? (
         <div className="flex gap-2 items-center">
@@ -89,7 +90,7 @@ export function MediaPicker({
             if (item) pick(item);
           }}
         />
-        <p aria-live="polite" className="text-red-700">
+        <p aria-live="polite" className="text-danger">
           {error}
         </p>
         {items?.length === 0 && <p>No media yet.</p>}
