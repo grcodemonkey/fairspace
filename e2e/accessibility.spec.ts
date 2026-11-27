@@ -150,7 +150,7 @@ for (const { colorScheme, width, viewport } of modes) {
     await page.goto("/news");
     await page.waitForLoadState("networkidle");
     await expect(page.locator('main img[alt="A red bike"]').first()).toBeVisible();
-    await expectNoViolations(page, testInfo, `news-${colorScheme}-${width}`);
+    await expectNoViolations(scan(page), testInfo, `news-${colorScheme}-${width}`);
   });
 
   test(`axe-welcome-${colorScheme}-${width}`, async ({ page }, testInfo) => {
