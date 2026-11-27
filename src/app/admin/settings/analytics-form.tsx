@@ -12,7 +12,9 @@ export function AnalyticsForm({ settings }: { settings: SiteSettings }) {
   const [provider, setProvider] = useState<AnalyticsProvider | "">(settings.analytics?.provider ?? "");
   const [id, setId] = useState(settings.analytics?.id ?? "");
 
-  // Not `<form action>`: React resets the form after an action, and the controlled select would show "None" after an error.
+  // Not `<form action>` like brand-form and seo-form: React 19 calls form.reset() after the action. That puts the
+  // controlled select back on its first option ("None") while the state still says "google", so after a refused ID
+  // the form would look cleared. e2e analytics-public-only checks the select keeps its value after an error.
   const submit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
@@ -33,7 +35,10 @@ export function AnalyticsForm({ settings }: { settings: SiteSettings }) {
           id="analyticsProvider"
           name="analyticsProvider"
           value={provider}
-          onChange={(e) => setProvider(e.target.value as AnalyticsProvider | "")}
+          onChange={(e) => {
+            setProvider(e.target.value as AnalyticsProvider | "");
+            setId(""); // a domain is not a measurement ID
+          }}
           className="border rounded px-3 py-2 w-96"
         >
           <option value="">None</option>

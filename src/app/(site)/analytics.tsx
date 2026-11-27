@@ -11,7 +11,7 @@ export function Analytics({ analytics }: { analytics: AnalyticsSetting | null })
   }
   return (
     <>
-      <Script src={`https://www.googletagmanager.com/gtag/js?id=${valid.id}`} strategy="afterInteractive" />
+      <Script src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(valid.id)}`} strategy="afterInteractive" />
       <Script id="ga-config" strategy="afterInteractive">
         {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date());gtag("config",${JSON.stringify(valid.id)});`}
       </Script>

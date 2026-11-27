@@ -141,6 +141,13 @@ test("analytics-public-only", async ({ page, context, baseURL }) => {
   await page.getByRole("button", { name: "Save analytics" }).click();
   await expect(page.locator("#analytics").getByRole("status")).toHaveText("Saved.");
 
+  // A refused ID keeps the form as typed (the select must not reset to None).
+  await page.getByLabel("Provider").selectOption("google");
+  await page.getByLabel("Measurement ID").fill('G-12"><x');
+  await page.getByRole("button", { name: "Save analytics" }).click();
+  await expect(page.locator("#analytics").getByRole("status")).toHaveText("Enter a measurement ID like G-XXXXXXXXXX.");
+  await expect(page.getByLabel("Provider")).toHaveValue("google");
+
   await page.goto("/");
   await expect(plausible).toHaveCount(1);
   // Not on the admin or sign-in pages.
