@@ -39,6 +39,8 @@ test("publish-and-unpublish-update-sitemap", async ({ browser, request, baseURL 
   expect(await sitemap(request)).toContain(`http://localhost:3000/${slug}<`);
 
   await page.goto(editUrl.replace(/\/edit$/, "/history"));
+  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Unpublish" }).click();
+  await expect(page.getByText("Not published")).toBeVisible();
   await expect.poll(() => sitemap(request)).not.toContain(`/${slug}<`);
 });
