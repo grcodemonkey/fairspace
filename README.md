@@ -71,6 +71,10 @@ Video, Embed and Donate take a page link. Editors never paste embed code or HTML
 
 Video and Embed frames are sandboxed and load only when a visitor scrolls near them. The site sends a `Content-Security-Policy: frame-src` header that allows frames only from these sites. To add a site, change `src/puck/embed-providers.ts`.
 
+## Menu
+
+Admins edit the site menu at `/admin/menu`. The menu has two levels: top items, and child items under a top item. Every item links to a page or to a URL (the same link rule as blocks). A top item with children shows as its link plus a separate button that opens the children. A page link follows the page when its slug changes, and goes away when the page is deleted. A link to a page that is not published does not show on the public site; it shows when the page is published. "Save menu" replaces the whole menu (the last save wins). At most 50 items, and labels of at most 60 characters.
+
 ## Media storage
 
 Signed-in users upload images and PDFs at `/admin/media`. The browser sends the file straight to an S3-compatible bucket with a presigned PUT URL. The URL is valid for 5 minutes and is signed for one key, one Content-Type and one Content-Length. After the upload, the server reads the object's size and first bytes. If they do not match the declared type, the server deletes the object.

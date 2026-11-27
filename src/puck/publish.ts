@@ -3,6 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import { updateTag } from "next/cache";
 import type { getDb } from "@/db";
 import { pageRevisions, pages } from "@/db/schema";
+import { MENU_TAG } from "@/menu";
 import { pageTag } from "./published";
 
 // Server code only: the callers are server actions. Data must already have passed parsePageData.
@@ -36,8 +37,9 @@ export async function goLive(tx: Tx, pageId: string, data: Data, userId: string 
 
 /**
  * Makes the public page show the new live state on the next request. Call only after the transaction commits,
- * and only from a server action (updateTag works nowhere else). #19 (menu) and #23 (sitemap) add their tags here.
+ * and only from a server action (updateTag works nowhere else). #23 (sitemap) adds its tag here.
  */
 export function invalidatePage(slug: string) {
   updateTag(pageTag(slug));
+  updateTag(MENU_TAG); // the menu hides links to pages that are not live
 }

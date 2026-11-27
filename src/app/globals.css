@@ -39,6 +39,15 @@
 .rich-text-content a { color: var(--color-primary); text-decoration: underline; }
 .rich-text-content blockquote { border-left: 4px solid currentColor; padding-left: 1rem; margin: 0 0 1rem; font-style: italic; }
 
+/* Site menu (src/app/(site)/site-menu.tsx): at md and wider the list always shows and the "Menu" summary hides.
+   Only where ::details-content works: an older browser keeps the "Menu" button on desktop, so the list stays reachable. */
+@supports selector(::details-content) {
+  @media (width >= 48rem) {
+    .site-menu > summary { display: none; }
+    .site-menu::details-content { content-visibility: visible; display: contents; }
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;

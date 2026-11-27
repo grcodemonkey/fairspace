@@ -163,3 +163,22 @@ export const siteSettings = pgTable(
     check("site_settings_font", sql`${s.font} in ('geist', 'system', 'serif')`),
   ],
 );
+
+// The public site menu: top items (parentId null) and their children. parseMenu (src/menu.ts) allows two levels only.
+// Each item links to a page (by id, so a slug change or a page delete follows) or to a URL, never both.
+export const menuItems = pgTable(
+  "menu_items",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    parentId: text("parentId").references((): AnyPgColumn => menuItems.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    label: text("label").notNull(),
+    // The cascade also removes the children of a deleted top item. A future page-delete action must call
+    // updateTag(MENU_TAG) (src/menu.ts), or the cached public menu keeps the gone links.
+    pageId: text("pageId").references(() => pages.id, { onDelete: "cascade" }),
+    url: text("url"),
+  },
+  (item) => [check("menu_items_one_link", sql`num_nonnulls(${item.pageId}, ${item.url}) = 1`)],
+);

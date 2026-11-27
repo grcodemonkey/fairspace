@@ -64,6 +64,13 @@
       "when": 1795739833603,
       "tag": "0008_seo_site_defaults",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795740363023,
+      "tag": "0009_menu_items",
+      "breakpoints": true
     }
   ]
 }
