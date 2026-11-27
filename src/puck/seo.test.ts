@@ -1,4 +1,4 @@
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { pageMetadata } from "./seo";
 
 const base = { path: "/about", image: null, siteUrl: "https://example.org", siteName: "Riverside", defaultDescription: null };
@@ -48,4 +48,13 @@ test("post-article-meta", () => {
   expect(meta.alternates?.canonical).toBe("/news/x");
   expect(meta.openGraph).toMatchObject({ type: "article", url: "/news/x", publishedTime: "2026-11-20T00:00:00.000Z" });
   expect(pageMetadata({ ...base, props: {} }).openGraph).toMatchObject({ type: "website" });
+});
+
+test("vercel-production-url-gives-absolute-base", async () => {
+  vi.stubEnv("AUTH_URL", "");
+  vi.stubEnv("VERCEL_PROJECT_PRODUCTION_URL", "fairspace-demo.vercel.app");
+  const { siteUrl } = await import("@/sitemap");
+  const meta = pageMetadata({ ...base, siteUrl: siteUrl()?.href, props: {} });
+  expect(String(meta.metadataBase)).toBe("https://fairspace-demo.vercel.app/");
+  vi.unstubAllEnvs();
 });

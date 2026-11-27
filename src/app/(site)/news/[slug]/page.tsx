@@ -5,6 +5,7 @@ import { getMediaMeta, resolvePageMedia } from "@/media-library";
 import { pageConfig } from "@/puck/config";
 import { getPublishedPage } from "@/puck/published";
 import { pageMetadata } from "@/puck/seo";
+import { siteUrl } from "@/sitemap";
 import { publicPath, SLUG_FORMAT } from "@/puck/slug";
 import { getSiteSettings } from "@/site-settings";
 
@@ -38,7 +39,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     publishedTime: post.publishedAt,
     siteName: settings.siteName,
     defaultDescription: settings.defaultDescription,
-    siteUrl: process.env.AUTH_URL, // static prerender: baked at build, so AUTH_URL must be set at build time too
+    siteUrl: siteUrl()?.href, // static prerender: baked at build. AUTH_URL, else the Vercel production URL
   });
 }
 
