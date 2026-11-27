@@ -6,6 +6,7 @@ import { getNewsPage } from "@/news";
 import { feedAlternate } from "@/puck/seo";
 import { publicPath } from "@/puck/slug";
 import { getSiteSettings } from "@/site-settings";
+import { siteUrl } from "@/sitemap";
 
 // `/news` is this route with n = 1 (rewrite in next.config.ts), and `/news/page/1` redirects to `/news`.
 // Same static pattern as news/[slug]: each page number renders once, and notFound() gives a real 404.
@@ -31,7 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const n = await pageNumber(params);
   if (!n) return {};
   const { siteName, defaultDescription } = await getSiteSettings();
-  const siteUrl = process.env.AUTH_URL; // static prerender: same metadataBase rule as pageMetadata
+  const base = siteUrl();
   return {
     title: n === 1 ? "News" : `News – page ${n}`,
     ...(defaultDescription && { description: defaultDescription }),
@@ -39,7 +40,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       canonical: pagePath(n),
       types: feedAlternate(siteName),
     },
-    ...(siteUrl && URL.canParse(siteUrl) && { metadataBase: new URL(siteUrl) }),
+    // Same origin rule as the feed. Static prerender: read at build, so set AUTH_URL at build time too.
+    ...(base && { metadataBase: base }),
   };
 }
 

@@ -54,18 +54,6 @@ export async function getNewsPage(n: number): Promise<{ posts: NewsPost[]; hasOl
   return { posts, hasOlder: rows.length > NEWS_PAGE_SIZE };
 }
 
-/**
- * The public origin for absolute URLs: AUTH_URL, else Vercel's production URL, else null.
- * Never the Host header: a visitor controls it, and a cache would keep the poisoned links.
- * shortcut: same logic as siteUrl() in #23 (src/sitemap.ts); switch to that helper once it is on main.
- */
-export function siteUrl(): URL | null {
-  const authUrl = process.env.AUTH_URL;
-  if (authUrl && URL.canParse(authUrl)) return new URL(authUrl);
-  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-  return vercel && URL.canParse(`https://${vercel}`) ? new URL(`https://${vercel}`) : null;
-}
-
 /** Escapes text for XML and drops the characters XML 1.0 refuses (most C0 controls, U+FFFE, U+FFFF, lone surrogates). */
 export function xmlEscape(value: string): string {
   return value

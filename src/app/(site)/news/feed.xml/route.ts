@@ -1,6 +1,7 @@
 import { connection } from "next/server";
-import { buildRss, getNewsPage, siteUrl } from "@/news";
+import { buildRss, getNewsPage } from "@/news";
 import { getSiteSettings } from "@/site-settings";
+import { siteUrl } from "@/sitemap";
 
 // A static segment, so it wins over news/[slug] (and `feed.xml` fails SLUG_FORMAT anyway).
 export async function GET() {

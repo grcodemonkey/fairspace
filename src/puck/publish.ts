@@ -4,8 +4,8 @@ import { updateTag } from "next/cache";
 import type { getDb } from "@/db";
 import { pageRevisions, pages } from "@/db/schema";
 import { MENU_TAG } from "@/menu";
-import { SITEMAP_TAG } from "@/sitemap";
 import { NEWS_TAG } from "@/news";
+import { SITEMAP_TAG } from "@/sitemap";
 import { pageTag } from "./published";
 
 // Server code only: the callers are server actions. Data must already have passed parsePageData.
