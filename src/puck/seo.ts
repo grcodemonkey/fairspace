@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
 
+export const FEED_PATH = "/news/feed.xml";
+
+/** The news feed link in every public page head (`alternates.types`). */
+export const feedAlternate = (siteName: string) => ({ "application/rss+xml": [{ url: FEED_PATH, title: siteName }] });
+
 /** Longest page description and site default description. */
 export const SEO_DESCRIPTION_MAX = 300;
 
@@ -33,8 +38,8 @@ export function pageMetadata({
   return {
     ...(title && { title }),
     ...(description && { description }),
-    // Relative: resolved against metadataBase.
-    alternates: { canonical: path },
+    // Relative: resolved against metadataBase. It replaces the layout's `alternates` as a whole, so it repeats the feed.
+    alternates: { canonical: path, types: feedAlternate(siteName) },
     ...(props?.noindex === true && { robots: { index: false } }),
     openGraph: {
       ...(publishedTime ? { type: "article", publishedTime: publishedTime.toISOString() } : { type: "website" }),

@@ -51,9 +51,25 @@ test("editor-publishes-post", async ({ browser, baseURL }) => {
   const today = new Date().toISOString().slice(0, 10);
   await expect(page.locator("article time")).toHaveAttribute("datetime", new RegExp(`^${today}`));
   await expect(page.locator('meta[property="og:type"]')).toHaveAttribute("content", "article");
-  // A post is not a page, and /news has no index yet (#22).
+  await expect(page.locator('link[rel="alternate"][type="application/rss+xml"]')).toHaveAttribute("href", /\/news\/feed\.xml$/);
+  // A post is not a page.
   expect((await page.goto(`/${slug}`))?.status()).toBe(404);
-  expect((await page.goto("/news"))?.status()).toBe(404);
+
+  // The index lists it with its date and links to it; the feed has its absolute link.
+  await page.goto("/news");
+  const card = page.locator("article").filter({ hasText: first });
+  await expect(card.locator("time")).toHaveAttribute("datetime", new RegExp(`^${today}`));
+  await card.getByRole("link", { name: first }).click();
+  await expect(page).toHaveURL(`/news/${slug}`);
+  const feed = await page.request.get("/news/feed.xml");
+  expect(feed.status()).toBe(200);
+  expect(feed.headers()["content-type"]).toBe("application/rss+xml; charset=utf-8");
+  expect(await feed.text()).toContain(`<link>http://localhost:3000/news/${slug}</link>`);
+  const redirect = await page.request.get("/news/page/1", { maxRedirects: 0 });
+  expect(redirect.status()).toBe(308);
+  expect(redirect.headers().location).toBe("/news");
+  expect((await page.goto("/news/page/99"))?.status()).toBe(404);
+  expect((await page.goto("/news/page/abc"))?.status()).toBe(404);
 
   // The list shows it as live; the pages list does not show it.
   await page.goto("/admin/news");
@@ -88,5 +104,15 @@ test("admin-restores-post", async ({ browser, baseURL }) => {
   await expect(page).toHaveTitle(`${first} · ${BRAND_DEFAULTS.siteName}`);
   // Restore keeps the publish date.
   await expect(page.locator("article time")).toHaveText("January 15, 2026");
+
+  // Unpublish takes it off the index (the news cache tag expires).
+  await page.goto("/news");
+  await expect(page.getByRole("link", { name: first })).toBeVisible();
+  await page.goto(editUrl.replace(/\/edit$/, "/history"));
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Unpublish" }).click();
+  await expect(page.getByText("Not published")).toBeVisible();
+  await page.goto("/news");
+  await expect(page.getByRole("link", { name: first })).toHaveCount(0);
   await page.context().close();
 });

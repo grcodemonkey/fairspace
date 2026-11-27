@@ -10,7 +10,7 @@ import { publicPath, SLUG_FORMAT } from "@/puck/slug";
 import { getSiteSettings } from "@/site-settings";
 
 // Same static pattern as the catch-all page route: each slug renders once, and notFound() gives a real 404.
-// `/news` alone is not this route: it falls to the catch-all and 404s (reserved slug) until #22 adds the index.
+// `/news` alone is the index (news/page/[n], through a rewrite in next.config.ts).
 export const ensureStatic = "navigation";
 
 // `_` fails SLUG_FORMAT, so the build never queries the DB.
