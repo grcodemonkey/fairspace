@@ -127,3 +127,32 @@ test("seo-defaults-reach-pages", async ({ page, context, baseURL, request }) => 
   await page.getByRole("listitem").filter({ hasText: SHARE_FILE }).getByRole("button", { name: "Delete" }).click();
   await expect(page.getByText("Used as the site share image.")).toBeVisible();
 });
+
+// The script is built from a fixed template on public pages only; clearing the setting removes it.
+test("analytics-public-only", async ({ page, context, baseURL }) => {
+  // No outside calls from tests.
+  await context.route(/plausible\.io|googletagmanager\.com/, (route) => route.abort());
+  await signInAs(context, baseURL!, "admin");
+  const plausible = page.locator('script[src="https://plausible.io/js/script.js"][data-domain="example.org"]');
+
+  await page.goto("/admin/settings");
+  await page.getByLabel("Provider").selectOption("plausible");
+  await page.getByLabel("Site domain").fill("example.org");
+  await page.getByRole("button", { name: "Save analytics" }).click();
+  await expect(page.locator("#analytics").getByRole("status")).toHaveText("Saved.");
+
+  await page.goto("/");
+  await expect(plausible).toHaveCount(1);
+  // Not on the admin or sign-in pages.
+  for (const path of ["/admin/settings", "/sign-in"]) {
+    await page.goto(path);
+    await expect(page.locator('script[src*="plausible.io"]')).toHaveCount(0);
+  }
+
+  await page.goto("/admin/settings");
+  await page.getByLabel("Provider").selectOption("");
+  await page.getByRole("button", { name: "Save analytics" }).click();
+  await expect(page.locator("#analytics").getByRole("status")).toHaveText("Saved.");
+  await page.goto("/");
+  await expect(page.locator('script[src*="plausible.io"]')).toHaveCount(0);
+});

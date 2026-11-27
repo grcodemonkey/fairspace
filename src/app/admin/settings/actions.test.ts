@@ -10,7 +10,7 @@ import { media, siteSettings, users } from "@/db/schema";
 import { mediaTag } from "@/media-library";
 import { getSiteSettings, SITE_SETTINGS_TAG } from "@/site-settings";
 import { deleteMediaAction } from "../media/actions";
-import { saveBrandAction, saveSeoAction } from "./actions";
+import { saveAnalyticsAction, saveBrandAction, saveSeoAction } from "./actions";
 
 vi.mock("@/auth", () => ({ auth: vi.fn() }));
 vi.mock("next/cache", () => ({ refresh: vi.fn(), updateTag: vi.fn(), cacheLife: vi.fn(), cacheTag: vi.fn() }));
@@ -112,6 +112,7 @@ test("brand-save-upserts", async () => {
     font: "serif",
     defaultDescription: null,
     defaultShareImage: null,
+    analytics: null,
   });
 });
 
@@ -132,6 +133,7 @@ test("defaults-when-unset", async () => {
     font: "geist",
     defaultDescription: null,
     defaultShareImage: null,
+    analytics: null,
   });
 });
 
@@ -187,6 +189,65 @@ test("seo-save-touches-only-its-columns", async () => {
 test("seo-first-save-without-brand-keeps-default-name", async () => {
   await saveSeoAction({}, form(seo));
   expect((await getSiteSettings()).siteName).toBe("Fairspace");
+});
+
+const analytics = (analyticsProvider: string, analyticsId: string) => form({ analyticsProvider, analyticsId });
+
+test("analytics-admin-only", async () => {
+  signedInAs("editor");
+  await expect(saveAnalyticsAction({}, analytics("plausible", "example.org"))).rejects.toMatchObject({
+    digest: "NEXT_HTTP_ERROR_FALLBACK;403",
+  });
+  expect(await rows()).toEqual([]);
+});
+
+test("analytics-plausible-saved", async () => {
+  expect(await saveAnalyticsAction({}, analytics("plausible", " Example.ORG "))).toEqual({ message: "Saved." });
+  expect((await rows())[0]).toMatchObject({ analyticsProvider: "plausible", analyticsId: "example.org" });
+  expect((await getSiteSettings()).analytics).toEqual({ provider: "plausible", id: "example.org" });
+  expect(updateTag).toHaveBeenCalledWith(SITE_SETTINGS_TAG);
+});
+
+test("analytics-google-saved", async () => {
+  expect(await saveAnalyticsAction({}, analytics("google", "g-abc123"))).toEqual({ message: "Saved." });
+  expect((await rows())[0]).toMatchObject({ analyticsProvider: "google", analyticsId: "G-ABC123" });
+});
+
+test("analytics-bad-id-refused", async () => {
+  for (const [provider, id] of [
+    ["google", 'G-12"><x'],
+    ["google", ""],
+    ["plausible", "https://example.org"],
+    ["plausible", "example.org/"],
+    ["matomo", "example.org"],
+  ]) {
+    expect(await saveAnalyticsAction({}, analytics(provider, id)), `${provider} ${id}`).toHaveProperty("error");
+  }
+  expect(await rows()).toEqual([]);
+});
+
+test("analytics-cleared", async () => {
+  await saveAnalyticsAction({}, analytics("google", "G-ABC123"));
+  expect(await saveAnalyticsAction({}, analytics("", ""))).toEqual({ message: "Saved." });
+  expect((await rows())[0]).toMatchObject({ analyticsProvider: null, analyticsId: null });
+  expect((await getSiteSettings()).analytics).toBeNull();
+});
+
+test("analytics-db-check", async () => {
+  // The second line of defense: a write that skips the action still cannot store a script ID.
+  const insert = (analyticsProvider: string | null, analyticsId: string | null) =>
+    getDb().insert(siteSettings).values({ analyticsProvider, analyticsId });
+  await expect(insert("google", "x")).rejects.toThrow();
+  await expect(insert("google", null)).rejects.toThrow();
+  await expect(insert(null, "G-ABC123")).rejects.toThrow();
+  await expect(insert("plausible", "https://example.org")).rejects.toThrow();
+  await expect(insert("matomo", "example.org")).rejects.toThrow();
+});
+
+test("analytics-keeps-other-sections", async () => {
+  await saveBrandAction({}, form(valid));
+  await saveAnalyticsAction({}, analytics("plausible", "example.org"));
+  expect((await rows())[0]).toMatchObject({ ...brand, analyticsId: "example.org" });
 });
 
 test("share-image-delete-refused", async () => {

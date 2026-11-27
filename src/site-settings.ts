@@ -1,5 +1,6 @@
-// Server only: the site settings row (one row, id = 1). #16 and #20 add columns and read through here.
+// Server only: the site settings row (one row, id = 1). #16 and #20 added columns and read through here.
 import { and, eq, isNotNull, like, or } from "drizzle-orm";
+import { type Analytics, validAnalytics } from "@/analytics";
 import { alias } from "drizzle-orm/pg-core";
 import { cacheLife, cacheTag, updateTag } from "next/cache";
 import { BRAND_DEFAULTS, type FontKey, isFontKey, safeHex } from "@/brand";
@@ -18,9 +19,16 @@ export type SiteSettings = {
   font: FontKey;
   defaultDescription: string | null;
   defaultShareImage: { id: string; url: string; alt: string | null } | null;
+  analytics: Analytics | null;
 };
 
-const DEFAULTS: SiteSettings = { ...BRAND_DEFAULTS, logo: null, defaultDescription: null, defaultShareImage: null };
+const DEFAULTS: SiteSettings = {
+  ...BRAND_DEFAULTS,
+  logo: null,
+  defaultDescription: null,
+  defaultShareImage: null,
+  analytics: null,
+};
 
 /** The settings with defaults for unset columns. Every page in the site layout reads it, so it is cached until a save. */
 export async function getSiteSettings(): Promise<SiteSettings> {
@@ -64,6 +72,8 @@ async function readSiteSettings(): Promise<SiteSettings> {
     font: isFontKey(s.font) ? s.font : DEFAULTS.font,
     defaultDescription: s.defaultDescription?.trim() || null,
     defaultShareImage: row.share ? { id: row.share.id, url: mediaUrl(row.share), alt: row.share.alt } : null,
+    // Render-side check, after the action and the DB constraint: only a valid provider and ID reach a script tag.
+    analytics: validAnalytics(s.analyticsProvider, s.analyticsId),
   };
 }
 

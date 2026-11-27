@@ -120,6 +120,7 @@ Admins edit the site at `/admin/settings`. Editors get a 403.
 - **Primary colors**: one for light mode, one for dark mode. Buttons and links use them. Each must have at least 4.5:1 contrast on its page background (WCAG AA); a lower color is refused with its ratio. The text on a button is white or black, whichever has more contrast.
 - **Font**: one font for the whole public site: Geist (default), System sans, or Serif.
 - **Search and sharing**: a default description (at most 300 characters) and a default share image (an image from the media library). A page with no description or social image of its own uses them, and so does the welcome page. A file in use as the default share image cannot be deleted.
+- **Analytics**: Plausible (a site domain like `example.org`; no cookies) or Google Analytics (a measurement ID like `G-XXXXXXXXXX`). You enter only the ID: Fairspace builds the script tag from a fixed template and host, so there is no free-form snippet. The script loads on public pages only (never `/admin` or `/sign-in`), and only while a provider is set. Google Analytics sets cookies. Where the law requires consent (for example the EU and UK), the site owner must get it; Fairspace has no consent banner. Self-hosted Plausible is not supported.
 
 Public pages show a save at once. The Puck editor preview keeps the default colors and font.
 
