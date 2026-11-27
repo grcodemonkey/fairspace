@@ -58,3 +58,9 @@ test("vercel-production-url-gives-absolute-base", async () => {
   expect(String(meta.metadataBase)).toBe("https://fairspace-demo.vercel.app/");
   vi.unstubAllEnvs();
 });
+
+test("feed-alternate-on-every-page", () => {
+  expect(pageMetadata({ ...base, props: {} }).alternates?.types).toEqual({
+    "application/rss+xml": [{ url: "/news/feed.xml", title: "Riverside" }],
+  });
+});

@@ -4,6 +4,7 @@ import {
   type AnyPgColumn,
   check,
   foreignKey,
+  index,
   integer,
   jsonb,
   pgEnum,
@@ -100,6 +101,8 @@ export const pages = pgTable(
   },
   (page) => [
     check("pages_slug_format", sql`${page.slug} ~ '^[a-z0-9]+(-[a-z0-9]+)*$'`),
+    // The news index and feed: posts, newest first (src/news.ts).
+    index("pages_kind_published_at_idx").on(page.kind, page.publishedAt.desc()),
     // A page can only point at its own revision. A null publishedRevisionId skips the check (MATCH SIMPLE).
     // No "set null": on a composite FK it would null pages.id too. Revisions go only with the page-delete cascade.
     foreignKey({

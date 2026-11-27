@@ -108,6 +108,12 @@ The first publish sets the publish date; a republish, restore or unpublish keeps
 
 The post's Description is its summary, and its Social image is its featured image. The menu page picker lists pages only; to put a post in the menu, use its URL.
 
+`/news` lists published posts, newest first, 10 for each page (`/news/page/2`, `/news/page/3`, …). Each post shows its title, date, summary and featured image. Posts with "Hide from search engines" on are listed too. To put the index in the menu, add a URL item `/news`.
+
+`/news/feed.xml` is an RSS feed of the newest 10 posts (title, link, date and summary; not the full text). Every public page links to it in its head, so feed readers find it from the site address. The feed builds its links from `AUTH_URL` (on Vercel, the production URL is the fallback); with neither set, it answers 503.
+
+A page made with the slug `news` before news posts existed is renamed to `news-page` by the database migration, so it stays reachable at `/news-page`.
+
 ## Search engines
 
 `/sitemap.xml` lists every published page and news post at its current slug (`/` for the `home` page), except those with "Hide from search engines" on. Unpublished pages and old slugs never appear. It updates when you publish, restore, unpublish or change a post date. `/robots.txt` allows the site, disallows `/admin`, `/api` and `/sign-in`, and links to the sitemap.

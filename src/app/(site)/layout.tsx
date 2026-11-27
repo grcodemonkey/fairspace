@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { BRAND_DEFAULTS, FONTS, onColor, safeHex } from "@/brand";
+import { feedAlternate } from "@/puck/seo";
 import { getSiteSettings } from "@/site-settings";
 import { Analytics } from "./analytics";
 import { SiteMenu } from "./site-menu";
@@ -11,6 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const { siteName, defaultDescription, defaultShareImage } = await getSiteSettings();
   return {
     title: { default: siteName, template: `%s · ${siteName}` },
+    alternates: { types: feedAlternate(siteName) },
     // Used only when the page returns {} (the welcome page): page metadata replaces `description` and
     // `openGraph` as a whole, so pageMetadata applies the same defaults itself.
     ...(defaultDescription && { description: defaultDescription }),

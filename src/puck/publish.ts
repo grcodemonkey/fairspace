@@ -5,6 +5,7 @@ import type { getDb } from "@/db";
 import { pageRevisions, pages } from "@/db/schema";
 import { MENU_TAG } from "@/menu";
 import { SITEMAP_TAG } from "@/sitemap";
+import { NEWS_TAG } from "@/news";
 import { pageTag } from "./published";
 
 // Server code only: the callers are server actions. Data must already have passed parsePageData.
@@ -52,4 +53,5 @@ export function invalidatePage(slug: string) {
   updateTag(pageTag(slug));
   updateTag(MENU_TAG); // the menu hides links to pages that are not live
   updateTag(SITEMAP_TAG); // the sitemap lists live pages and posts
+  updateTag(NEWS_TAG); // pages too: the caller does not know the kind, and the extra refresh is one cached query
 }

@@ -18,6 +18,7 @@ const s3 = new S3Client({
 });
 const run = crypto.randomUUID().slice(0, 8);
 const slug = `e2e-a11y-${run}`;
+const postSlug = `e2e-a11y-news-${run}`;
 const mediaKey = `media/${FIXTURE_MEDIA_ID}.png`;
 const userIds: string[] = [];
 const modes = [
@@ -58,6 +59,15 @@ test.beforeAll(async ({ browser, baseURL }) => {
     values (${crypto.randomUUID()}, ${page.id}, ${sql.json(data)}) returning id`;
   await sql`update pages set "publishedRevisionId" = ${rev.id} where id = ${page.id}`;
 
+  // One post for the /news scan, with the fixture image. Inserted in SQL, so it shows only if /news is not cached
+  // yet: this spec runs first on a fresh server.
+  const postData = { root: { props: { title: `A11y news ${run}`, description: "A short summary.", socialImage: FIXTURE_MEDIA_ID } }, content: [] };
+  const [post] = await sql`insert into pages (id, kind, title, slug, draft, "publishedAt")
+    values (${crypto.randomUUID()}, 'post', 'A11y news', ${postSlug}, ${sql.json(postData)}, '2099-01-01') returning id`;
+  const [postRev] = await sql`insert into page_revisions (id, "pageId", data)
+    values (${crypto.randomUUID()}, ${post.id}, ${sql.json(postData)}) returning id`;
+  await sql`update pages set "publishedRevisionId" = ${postRev.id} where id = ${post.id}`;
+
   // Two URL items; the second has one child: this page, so the "current child" state is scanned too.
   const admin = await emptyMenuForm(browser, baseURL!);
   const item = (name: string) => admin.getByRole("group", { name, exact: true });
@@ -87,7 +97,7 @@ test.afterAll(async ({ browser, baseURL }) => {
     await expect(admin.getByRole("status")).toHaveText("Saved");
     await admin.context().close();
   } finally {
-    await sql`delete from pages where slug = ${slug}`; // cascades to page_revisions
+    await sql`delete from pages where slug in (${slug}, ${postSlug})`; // cascades to page_revisions
     await sql`delete from media where id = ${FIXTURE_MEDIA_ID}`;
     if (userIds.length) await sql`delete from users where id in ${sql(userIds)}`; // and to the sessions
     await s3.send(new DeleteObjectCommand({ Bucket: process.env.S3_BUCKET, Key: mediaKey }));
@@ -121,6 +131,15 @@ for (const { colorScheme, width, viewport } of modes) {
     await expectNoViolations(scan(page), testInfo, `all-blocks-${colorScheme}-${width}-menu-closed`);
     await open(page, width === "mobile");
     await expectNoViolations(scan(page), testInfo, `all-blocks-${colorScheme}-${width}-menu-open`);
+  });
+
+  test(`axe-news-${colorScheme}-${width}`, async ({ page }, testInfo) => {
+    await page.emulateMedia({ colorScheme });
+    await page.setViewportSize(viewport);
+    await page.goto("/news");
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator('main img[alt="A red bike"]').first()).toBeVisible();
+    await expectNoViolations(page, testInfo, `news-${colorScheme}-${width}`);
   });
 
   test(`axe-welcome-${colorScheme}-${width}`, async ({ page }, testInfo) => {

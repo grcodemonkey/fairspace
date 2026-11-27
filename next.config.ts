@@ -17,6 +17,14 @@ const nextConfig: NextConfig = {
     const csp = `frame-src 'self' ${EMBED_FRAME_ORIGINS.join(" ")}`;
     return [{ source: "/:path*", headers: [{ key: "Content-Security-Policy", value: csp }] }];
   },
+  // The news index is one static route, /news/page/[n]. A news/page.tsx would prerender at build (no DB) and bake an
+  // empty list with no cache tag. Redirects run before rewrites, so /news/page/1 → /news → page 1 does not loop.
+  async rewrites() {
+    return [{ source: "/news", destination: "/news/page/1" }];
+  },
+  async redirects() {
+    return [{ source: "/news/page/1", destination: "/news", permanent: true }];
+  },
   turbopack: {
     rules: {
       "*.css": {
