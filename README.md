@@ -79,6 +79,12 @@ The first publish sets the publish date; a republish, restore or unpublish keeps
 
 The post's Description is its summary, and its Social image is its featured image. The menu page picker lists pages only; to put a post in the menu, use its URL.
 
+## Search engines
+
+`/sitemap.xml` lists every published page and news post at its current slug (`/` for the `home` page), except those with "Hide from search engines" on. Unpublished pages and old slugs never appear. It updates when you publish, restore, unpublish or change a post date. `/robots.txt` allows the site, disallows `/admin`, `/api` and `/sign-in`, and links to the sitemap.
+
+Both build their URLs from `AUTH_URL` (on Vercel, the production URL is the fallback). With neither set, the sitemap is empty and `robots.txt` has no `Sitemap:` line.
+
 ## Menu
 
 Admins edit the site menu at `/admin/menu`. The menu has two levels: top items, and child items under a top item. Every item links to a page or to a URL (the same link rule as blocks). A top item with children shows as its link plus a separate button that opens the children. A page link follows the page when its slug changes, and goes away when the page is deleted. A link to a page that is not published does not show on the public site; it shows when the page is published. "Save menu" replaces the whole menu (the last save wins). At most 50 items, and labels of at most 60 characters.
