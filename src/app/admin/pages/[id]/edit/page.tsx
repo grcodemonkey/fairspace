@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { getDb } from "@/db";
 import { pages } from "@/db/schema";
 import { requireUser } from "@/guards";
+import { resolvePageMedia } from "@/media-library";
 import { PageEditor } from "./editor";
 
 export default function EditPagePage({ params }: PageProps<"/admin/pages/[id]/edit">) {
@@ -24,5 +25,5 @@ async function EditorLoader({ params }: { params: Promise<{ id: string }> }) {
     .where(eq(pages.id, id))
     .limit(1);
   if (!page) notFound();
-  return <PageEditor id={page.id} title={page.title} draft={page.draft} />;
+  return <PageEditor id={page.id} title={page.title} draft={page.draft} media={await resolvePageMedia(page.draft)} />;
 }

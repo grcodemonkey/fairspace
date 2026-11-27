@@ -2,13 +2,14 @@
 import { Render } from "@puckeditor/core";
 import { prerender } from "react-dom/static";
 import { expect, test } from "vitest";
-import { allBlocksFixture } from "./all-blocks.fixture";
+import type { MediaMap } from "@/media";
+import { allBlocksFixture, FIXTURE_MEDIA_ID } from "./all-blocks.fixture";
 import { pageConfig } from "./config";
 import { parsePageData } from "./validate";
 
 // prerender (not renderToString) waits for Suspense, so the lazy rich-text render runs instead of the fallback.
-async function renderHtml(data = allBlocksFixture()) {
-  const { prelude } = await prerender(<Render config={pageConfig} data={data} />);
+async function renderHtml(data = allBlocksFixture(), media: MediaMap = {}) {
+  const { prelude } = await prerender(<Render config={pageConfig} data={data} metadata={{ media }} />);
   return new Response(prelude).text();
 }
 
@@ -68,4 +69,41 @@ test("stored-bad-embed-url-renders-no-iframe", async () => {
   const html = await renderHtml(data);
   expect(html).not.toContain("<iframe");
   expect(html).not.toMatch(/javascript:|evil/);
+});
+
+const bike = (alt: string | null): MediaMap => ({ [FIXTURE_MEDIA_ID]: { url: `/media/${FIXTURE_MEDIA_ID}.png`, alt } });
+
+test("render-media-blocks", async () => {
+  const html = await renderHtml(allBlocksFixture(), bike("A bike"));
+  // Image, Image + text, and two cards.
+  expect(html.match(/<img [^>]*alt="A bike"/g)).toHaveLength(4);
+  expect(html).toMatch(/srcSet="[^"]*%2Fmedia%2F/);
+  expect(html).toContain("<figcaption");
+  expect(html).toMatch(/<h3[^>]*><a href="\/market"[^>]*>Market<\/a><\/h3>/);
+  // A card with no link has a plain title.
+  expect(html).toMatch(/<h3[^>]*>Bike kitchen<\/h3>/);
+});
+
+test("alt-null-renders-empty", async () => {
+  const html = await renderHtml(allBlocksFixture(), bike(null));
+  expect(html.match(/<img [^>]*alt=""/g)).toHaveLength(4);
+  expect(html).not.toContain("No alt text");
+});
+
+test("unknown-media-renders-no-img", async () => {
+  const html = await renderHtml();
+  expect(html).not.toContain("<img");
+  expect(html).not.toMatch(/deleted|Choose an image/);
+  // The Image block (and its caption) is gone.
+  expect(html).not.toContain("Our bike repair day.");
+  // Image + text keeps its text.
+  expect(html).toContain("Thirty raised beds");
+});
+
+test("hero-background-is-decorative", async () => {
+  const data = allBlocksFixture();
+  data.content[0].props.image = FIXTURE_MEDIA_ID;
+  const html = await renderHtml(data, bike("A bike"));
+  expect(html).toMatch(/<section class="[^"]*text-white[^"]*"><img [^>]*alt=""/);
+  expect(html).toContain("bg-black/60");
 });

@@ -1,7 +1,7 @@
 import { Render } from "@puckeditor/core";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
-import { getMediaMeta } from "@/media-library";
+import { getMediaMeta, resolvePageMedia } from "@/media-library";
 import { pageConfig } from "@/puck/config";
 import { pageMetadata } from "@/puck/seo";
 import { getPublishedPage } from "@/puck/published";
@@ -49,7 +49,7 @@ export default async function PublicPage({ params }: Props) {
   if (segments?.[0] === "home") permanentRedirect("/");
 
   const data = await getPublishedPage(slug);
-  if (data) return <Render config={pageConfig} data={data} />;
+  if (data) return <Render config={pageConfig} data={data} metadata={{ media: await resolvePageMedia(data) }} />;
   if (slug !== "home") notFound();
 
   // A new install has no published home page yet.

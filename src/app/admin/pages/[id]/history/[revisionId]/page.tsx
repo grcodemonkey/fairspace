@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { getDb } from "@/db";
 import { pageRevisions } from "@/db/schema";
 import { requireUser } from "@/guards";
+import { resolvePageMedia } from "@/media-library";
 import { pageConfig } from "@/puck/config";
 
 export default function RevisionPage({ params }: PageProps<"/admin/pages/[id]/history/[revisionId]">) {
@@ -34,7 +35,7 @@ async function Revision({ params }: { params: Promise<{ id: string; revisionId: 
         </Link>
       </div>
       {/* Safe to render: parsePageData sanitized the data before publish wrote it, and restore parses it again. */}
-      <Render config={pageConfig} data={revision.data} />
+      <Render config={pageConfig} data={revision.data} metadata={{ media: await resolvePageMedia(revision.data) }} />
     </>
   );
 }
